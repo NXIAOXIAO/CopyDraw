@@ -256,7 +256,7 @@ function defaultMouseDown(event) {
     clickdown = true
   } else if (event.button === 2) {
     // 阻止默认的右键菜单
-    switchSelect() //右键切换选择模式
+    resetToolbar() //右键切换选择模式
     event.preventDefault()
   }
 }
