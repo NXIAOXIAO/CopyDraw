@@ -2,11 +2,16 @@ import { globalData } from '../core/globalData.js'
 import Logger from '../common/logger.js'
 import { installDefaultOp } from '../operations/default.js'
 import { installLineDrawOp } from '../operations/lineDraw.js'
+import { installSelectEditOp } from '../operations/selectEdit.js'
 import { viewport } from '../core/viewport.js'
+import { selector } from '../operations/selectEdit.js'
+import { canvas } from './canvas.js'
+import { defaultRendering, installRendingOp } from '../operations/redering.js'
+
 const tools = [
   {
     tooltip: '默认浏览模式',
-    icon: '../public/icon/arrow_icon.ico',
+    icon: '../public/icon/arrow.png',
     listener: () => {
       globalData.renderModer = 'default'
       installDefaultOp()
@@ -23,11 +28,12 @@ const tools = [
     }
   },
   {
-    tooltip: '画笔绘制模式',
-    icon: '../public/icon/pen.png',
+    tooltip: '选择编辑模式',
+    icon: '../public/icon/select.png',
     listener: () => {
-      globalData.renderModer = 'penDraw'
-      Logger.info('当前是画笔绘制模式')
+      globalData.renderModer = 'selectEdit'
+      installSelectEditOp()
+      Logger.info('当前是选择编辑模式')
     }
   },
   {
@@ -35,6 +41,8 @@ const tools = [
     icon: '../public/icon/render-icon.png',
     listener: () => {
       globalData.renderModer = 'Render'
+      installRendingOp()
+      defaultRendering()
       Logger.info('当前渲染模式')
     }
   }
@@ -44,9 +52,9 @@ const toolbar = document.createElement('div')
 toolbar.style.zIndex = '999'
 toolbar.style.userSelect = 'none'
 toolbar.className = 'toolbar'
+const icons = [] // 保存所有icon引用
 
 export function setupToolbar() {
-  const icons = [] // 保存所有icon引用
   tools.forEach((tool) => {
     const item = document.createElement('div')
     item.className = 'toolbar-item'
@@ -71,8 +79,16 @@ export function setupToolbar() {
     toolbar.appendChild(item)
     icons.push(icon) // 保存引用
   })
-  icons[0].click() //初始默认模式设置
+  resetToolbar()
   document.body.appendChild(toolbar)
+}
+
+export function resetToolbar() {
+  icons[0].click() //初始默认模式设置
+}
+
+export function switchSelect() {
+  icons[2].click()
 }
 
 const functionTools = [
@@ -91,7 +107,10 @@ const functionTools = [
   {
     tooltip: '导出图片',
     icon: '../public/icon/export.png',
-    listener: () => {}
+    listener: () => {
+      //selector.exportCanvas() //for debug
+      exportImg()
+    }
   }
 ]
 export function setupFunc() {
@@ -112,4 +131,11 @@ export function setupFunc() {
     item.appendChild(icon)
     toolbar.appendChild(item)
   })
+}
+
+function exportImg() {
+  const link = document.createElement('a')
+  link.href = canvas.toDataURL('image/png')
+  link.download = 'canvas.png'
+  link.click()
 }

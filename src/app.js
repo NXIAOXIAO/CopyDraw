@@ -2,7 +2,7 @@ import Logger from './common/logger.js'
 import { setupToolbar, setupFunc } from './controls/toolbar.js'
 import { setupCanvas, resizeCanvas } from './controls/canvas.js'
 import { viewport } from './core/viewport.js'
-import { debugData } from './core/globalData.js'
+import { debugData, globalData } from './core/globalData.js'
 import { worldToCanvas } from './common/utils.js'
 
 //开发时设置成DEBUG
@@ -24,16 +24,15 @@ document.addEventListener('contextmenu', function (event) {
   event.preventDefault()
 })
 
-//添加删除按键响应
-
 //加载全局数据
 //从数据库加载
-//await getdata()
+
+await globalData.load()
 
 //测试一下坐标转换函数
-Logger.debug(worldToCanvas(400, 400))
+//Logger.debug(worldToCanvas(400, 400))
 //先加入一些测试数据看看情况
-debugData()
+// debugData()
 
 //进行渲染
 viewport.update({ width: app.clientWidth, height: app.clientHeight })

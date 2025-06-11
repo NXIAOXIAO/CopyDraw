@@ -11,7 +11,7 @@ export const viewport = {
   update(
     updates,
     callback = () => {
-      Logger.debug(viewport)
+      Logger.debug('默认绘制方法', viewport)
       defaultRender()
     }
   ) {

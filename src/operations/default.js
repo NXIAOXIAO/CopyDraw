@@ -10,6 +10,7 @@ import logger from '../common/logger.js'
 import { viewport } from '../core/viewport.js'
 import { canvasToWorld } from '../common/utils.js'
 import Img from '../common/img.js'
+import { switchSelect } from '../controls/toolbar.js'
 
 export function installDefaultOp() {
   logger.debug('注册默认操作事件')
@@ -32,6 +33,7 @@ function defaultMouseDown(event) {
     clickdown = true
   } else if (event.button === 2) {
     // 阻止默认的右键菜单
+    switchSelect() //右键切换选择模式
     event.preventDefault()
   }
 }

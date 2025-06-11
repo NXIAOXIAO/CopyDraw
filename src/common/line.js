@@ -4,7 +4,7 @@ import { worldToCanvas } from './utils.js'
 
 class Line {
   constructor(id) {
-    this.id = Date.now()
+    this.id = 'line' + Date.now()
     this.geometies = []
   }
   //添加点

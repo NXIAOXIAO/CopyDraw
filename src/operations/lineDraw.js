@@ -11,8 +11,8 @@ import logger from '../common/logger.js'
 
 export function installLineDrawOp() {
   logger.debug('注册鼠标绘制模式操作事件')
-  //   removeAllEventListeners()
-  //   installDefaultOp()
+  //removeAllEventListeners()
+  installDefaultOp()
   addEventListenerWithTracking(canvas, 'mousedown', lineMouseDown)
   addEventListenerWithTracking(canvas, 'mouseup', lineMouseUp)
   addEventListenerWithTracking(canvas, 'mousemove', lineMouseMove)
