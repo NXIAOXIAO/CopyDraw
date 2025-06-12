@@ -16,6 +16,9 @@ export function installLineDrawOp() {
   addEventListenerWithTracking(canvas, 'mousedown', lineMouseDown)
   addEventListenerWithTracking(canvas, 'mouseup', lineMouseUp)
   addEventListenerWithTracking(canvas, 'mousemove', lineMouseMove)
+  addEventListenerWithTracking(canvas, 'wheel', lineWheel, {
+    passive: true
+  })
   addEventListenerWithTracking(canvas, 'dblclick', lineDblClick)
   addEventListenerWithTracking(document, 'keydown', lineKeyDown)
 }
@@ -41,6 +44,10 @@ function lineMouseUp(event) {
   }
 }
 
+function lineWheel(event) {
+  drawReactive(event.offsetX, event.offsetY)
+}
+
 function lineDblClick(event) {
   const currentX = event.offsetX
   const currentY = event.offsetY
@@ -56,6 +63,11 @@ function lineKeyDown(event) {
   } else if (event.key === 'Escape') {
     linePoints = []
   }
+
+  if (event.ctrlKey && event.key === 'z') {
+    linePoints.pop()
+  }
+
   drawReactive(event.offsetX, event.offsetY)
 }
 
