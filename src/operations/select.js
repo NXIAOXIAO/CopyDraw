@@ -358,6 +358,9 @@ function selectKeyDown(e) {
       selection = []
       selectedLine = null
       selectedPointIdx = null
+      viewport.update()
+      globalData.save()
+      drawSelection()
     }
   }
 
