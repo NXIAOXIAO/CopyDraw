@@ -2,7 +2,7 @@ import { globalData } from './globalData.js'
 import { canvas, ctx, ctx2, ctx3 } from '../controls/canvas.js'
 import Logger from '../common/logger.js'
 import { worldToCanvas } from '../common/utils.js'
-import { renderSelector } from '../operations/selectEdit.js'
+import { renderSelector } from '../operations/select.js'
 export function defaultRender() {
   Logger.debug('执行默认绘制')
   //绘制数据

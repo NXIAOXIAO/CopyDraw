@@ -4,7 +4,6 @@ import {
   removeAllEventListeners
 } from '../common/eventListeners.js'
 
-import CanvasSelector from '../common/selector.js'
 import { globalData } from '../core/globalData.js'
 import logger from '../common/logger.js'
 import { viewport } from '../core/viewport.js'
@@ -20,10 +19,11 @@ export function installDefaultOp() {
   addEventListenerWithTracking(canvas, 'mouseup', defaultMouseUp)
   addEventListenerWithTracking(canvas, 'wheel', defaultWheel, { passive: true })
   addEventListenerWithTracking(document, 'keydown', defaultKeyDown)
+  viewport.update() //移除其他临时渲染层的影响
 }
 
 let lastPos = {}
-let clickdown = false
+export let clickdown = false
 let mousePos = {}
 
 function defaultMouseDown(event) {
@@ -32,9 +32,7 @@ function defaultMouseDown(event) {
     lastPos = { x: event.clientX, y: event.clientY }
     clickdown = true
   } else if (event.button === 2) {
-    // 阻止默认的右键菜单
-    switchSelect() //右键切换选择模式
-    event.preventDefault()
+    switchSelect()
   }
 }
 
@@ -65,9 +63,6 @@ function defaultMouseUp(event) {
     logger.debug(`鼠标左键松开 [${event.clientX},${event.clientY}]`)
     lastPos = { x: event.clientX, y: event.clientY }
     clickdown = false
-  } else if (event.button === 2) {
-    // 阻止默认的右键菜单
-    event.preventDefault()
   }
 }
 
@@ -118,7 +113,7 @@ async function defaultKeyDown(event) {
     if (imageBlob) {
       const imgdata = await createImageBitmap(imageBlob)
       const wxy = canvasToWorld(mousePos.x, mousePos.y)
-      const img = new Img(imgdata, wxy.x, wxy.y)
+      const img = new Img(imgdata, wxy.x, wxy.y, viewport.rotate)
       globalData.addImg(img)
     }
   }

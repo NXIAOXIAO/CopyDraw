@@ -40,7 +40,18 @@ function lineMouseUp(event) {
     const currentX = event.offsetX
     const currentY = event.offsetY
     let wxy = canvasToWorld(currentX, currentY)
-    linePoints.push({ x: wxy.x, y: wxy.y })
+    let length = linePoints.length
+    if (length == 0) {
+      linePoints.push({ x: wxy.x, y: wxy.y })
+      return
+    }
+    if (
+      wxy.x !== linePoints[length - 1].x ||
+      wxy.y !== linePoints[length - 1].y
+    ) {
+      //不能添加重复点
+      linePoints.push({ x: wxy.x, y: wxy.y })
+    }
   }
 }
 
@@ -49,10 +60,10 @@ function lineWheel(event) {
 }
 
 function lineDblClick(event) {
-  const currentX = event.offsetX
-  const currentY = event.offsetY
-  let wxy = canvasToWorld(currentX, currentY)
-  linePoints.push({ x: wxy.x, y: wxy.y })
+  // const currentX = event.offsetX
+  // const currentY = event.offsetY
+  // let wxy = canvasToWorld(currentX, currentY)
+  // linePoints.push({ x: wxy.x, y: wxy.y })
   //这里结束绘制
   endDrawLine()
 }
@@ -74,6 +85,10 @@ function lineKeyDown(event) {
 function endDrawLine() {
   const line = new Line()
   line.geometies = [...linePoints]
+  if (line.geometies.length < 2) {
+    linePoints = []
+    return
+  }
   globalData.addLine(line)
   linePoints = []
 }

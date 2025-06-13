@@ -2,9 +2,8 @@ import { globalData } from '../core/globalData.js'
 import Logger from '../common/logger.js'
 import { installDefaultOp } from '../operations/default.js'
 import { installLineDrawOp } from '../operations/lineDraw.js'
-import { installSelectEditOp } from '../operations/selectEdit.js'
+import { installSelectOp } from '../operations/select.js'
 import { viewport } from '../core/viewport.js'
-import { selector } from '../operations/selectEdit.js'
 import { canvas } from './canvas.js'
 import { defaultRendering, installRendingOp } from '../operations/redering.js'
 
@@ -16,6 +15,7 @@ const tools = [
       globalData.renderModer = 'default'
       installDefaultOp()
       Logger.info('当前是默认浏览模式')
+      Logger.info('尝试兼容选择编辑模式')
     }
   },
   {
@@ -32,7 +32,7 @@ const tools = [
     icon: '../public/icon/select.png',
     listener: () => {
       globalData.renderModer = 'selectEdit'
-      installSelectEditOp()
+      installSelectOp()
       Logger.info('当前是选择编辑模式')
     }
   },

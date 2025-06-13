@@ -9,10 +9,6 @@ function openDatabase(dbName) {
         db.createObjectStore('imgs', { keyPath: 'id' })
       }
 
-      if (!db.objectStoreNames.contains('points')) {
-        db.createObjectStore('points', { keyPath: 'id' })
-      }
-
       if (!db.objectStoreNames.contains('lines')) {
         db.createObjectStore('lines', { keyPath: 'id' })
       }

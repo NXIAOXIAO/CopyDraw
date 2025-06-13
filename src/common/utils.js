@@ -21,16 +21,3 @@ export function worldToCanvas(wx, wy) {
   let cy = y2 + height / 2
   return { x: cx, y: cy }
 }
-
-export async function getImgFromBlob(imgblob) {
-  const img = new Image()
-  const imgUrl = URL.createObjectURL(imgblob)
-  img.src = imgUrl
-  return new Promise((resolve, reject) => {
-    img.onload = () => {
-      URL.revokeObjectURL(imgUrl)
-      resolve(img)
-    }
-    img.onerror = (error) => reject(error)
-  })
-}
