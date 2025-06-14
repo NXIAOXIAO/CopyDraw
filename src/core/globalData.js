@@ -43,7 +43,14 @@ async function getCompleteData(dbName) {
     getDataFromDB(dbName, 'lines')
   ])
   // 假设有 Img 类和 Line 类，需将 plain object 转为实例
-  globalData.imgs = imgs ? imgs.map((obj) => Object.assign(new Img(), obj)) : []
+  globalData.imgs = imgs
+    ? imgs.map((obj) => {
+        const img = Object.assign(new Img(), obj)
+        if (isNaN(img.x)) img.x = 0
+        if (isNaN(img.y)) img.y = 0
+        return img
+      })
+    : []
   globalData.lines = lines
     ? lines.map((obj) => Object.assign(new Line(), obj))
     : []

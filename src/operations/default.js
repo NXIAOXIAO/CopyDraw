@@ -9,7 +9,6 @@ import logger from '../common/logger.js'
 import { viewport } from '../core/viewport.js'
 import { canvasToWorld } from '../common/utils.js'
 import Img from '../common/img.js'
-import { switchSelect } from '../controls/toolbar.js'
 
 export function installDefaultOp() {
   logger.debug('注册默认操作事件')
@@ -23,20 +22,18 @@ export function installDefaultOp() {
 }
 
 let lastPos = {}
-export let clickdown = false
+let clickdown = false
 let mousePos = {}
 
-function defaultMouseDown(event) {
+export function defaultMouseDown(event) {
   if (event.button === 0) {
     logger.debug(`鼠标左键按下 [${event.clientX},${event.clientY}]`)
     lastPos = { x: event.clientX, y: event.clientY }
     clickdown = true
-  } else if (event.button === 2) {
-    switchSelect()
   }
 }
 
-function defaultMouseMove(event) {
+export function defaultMouseMove(event) {
   mousePos = { x: event.clientX, y: event.clientY }
   if (clickdown) {
     const move = {
@@ -58,7 +55,7 @@ function defaultMouseMove(event) {
   }
 }
 
-function defaultMouseUp(event) {
+export function defaultMouseUp(event) {
   if (event.button === 0) {
     logger.debug(`鼠标左键松开 [${event.clientX},${event.clientY}]`)
     lastPos = { x: event.clientX, y: event.clientY }
@@ -66,7 +63,7 @@ function defaultMouseUp(event) {
   }
 }
 
-function defaultWheel(event) {
+export function defaultWheel(event) {
   let wxy = canvasToWorld(event.clientX, event.clientY)
   // 阻止默认滚轮事件
   //event.preventDefault()

@@ -23,15 +23,29 @@ class Line {
   render(ctx) {
     if (this.geometies.length < 2) return
     ctx.beginPath()
-    const start = worldToCanvas(this.geometies[0].x, this.geometies[0].y)
-    logger.debug(viewport, start)
-    ctx.moveTo(start.x, start.y)
-    for (let i = 1; i < this.geometies.length; i++) {
-      const pt = worldToCanvas(this.geometies[i].x, this.geometies[i].y)
-      ctx.lineTo(pt.x, pt.y)
+    let hasVisible = false
+    for (let i = 0; i < this.geometies.length - 1; i++) {
+      const ps = worldToCanvas(this.geometies[i].x, this.geometies[i].y)
+      const pe = worldToCanvas(this.geometies[i + 1].x, this.geometies[i + 1].y)
+      if (isDraw(ps.x, ps.y, pe.x, pe.y, ctx)) {
+        ctx.moveTo(ps.x, ps.y)
+        ctx.lineTo(pe.x, pe.y)
+        hasVisible = true
+      }
     }
-    ctx.stroke()
+    if (hasVisible) {
+      ctx.stroke()
+    }
   }
+}
+
+function isDraw(x1, y1, x2, y2, ctx) {
+  // 通过ctx获取canvas引用
+  const { width, height } = ctx.canvas
+  return (
+    (x1 >= 0 && x1 <= width && y1 >= 0 && y1 <= height) ||
+    (x2 >= 0 && x2 <= width && y2 >= 0 && y2 <= height)
+  )
 }
 
 export default Line

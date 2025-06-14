@@ -9,19 +9,25 @@ import logger from '../common/logger.js'
 import { viewport } from '../core/viewport.js'
 import { worldToCanvas, canvasToWorld } from '../common/utils.js'
 import CanvasSelector from '../common/selector.js'
-import { resetToolbar } from '../controls/toolbar.js'
 
 export function installSelectOp() {
   removeAllEventListeners()
   selection = []
   selectedLine = null
   selectedPointIdx = null
+  addEventListenerWithTracking(canvas, 'wheel', defaultWheel, { passive: true })
+
   addEventListenerWithTracking(canvas, 'mousedown', selectMouseDown)
   addEventListenerWithTracking(canvas, 'mousemove', selectMouseMove)
   addEventListenerWithTracking(canvas, 'mouseup', selectMouseUp)
   addEventListenerWithTracking(canvas, 'dblclick', selectDblClick)
   addEventListenerWithTracking(document, 'keydown', selectKeyDown)
 }
+
+//让在选择时也可以正常移动视图
+let lastPos = {}
+let clickdown = false
+let clickdown2 = false //用于移动视图标记
 
 // 默认模式即可选择元素进行相关操作
 export const selector = new CanvasSelector()
@@ -41,8 +47,6 @@ let selectedPointIdx = null
 //移动元素
 let moveFlag = false
 let moveBegin = null
-
-let clickdown = false
 
 // 初始化选择器渲染
 export function renderSelector() {
@@ -184,6 +188,8 @@ function selectMouseDown(e) {
   boxStart = { x: e.offsetX, y: e.offsetY }
   if (e.button == 0) {
     clickdown = true
+    clickdown2 = true
+    lastPos = { x: e.clientX, y: e.clientY }
     //这里处理选择线后对点的操作，只选择一条线时
     if (selection.filter((sel) => sel.startsWith('line')).length > 0) {
       let id = selector.getIdFromCoordinates(clickPoint.x, clickPoint.y)
@@ -191,6 +197,7 @@ function selectMouseDown(e) {
       if (selectedLine) {
         selectedPointIdx = getPointAt(selectedLine, e.offsetX, e.offsetY)
         logger.debug('选择了', selectedLine, selectedPointIdx)
+        clickdown2 = false
       }
     }
   } else if (e.button == 2) {
@@ -203,8 +210,8 @@ function selectMouseDown(e) {
 function selectMouseMove(e) {
   //处理移动元素逻辑
   if (moveFlag) {
-    let dx = e.offsetX - moveBegin.x
-    let dy = e.offsetY - moveBegin.y
+    const dx = (e.offsetX - moveBegin.x) * viewport.scale
+    const dy = (e.offsetY - moveBegin.y) * viewport.scale
     selection.forEach((sel) => {
       if (sel.startsWith('img')) {
         let moveImg = globalData.imgs.find((img) => img.id === sel)
@@ -220,10 +227,27 @@ function selectMouseMove(e) {
       }
     })
     viewport.update()
-    globalData.save()
   }
   moveBegin = { x: e.offsetX, y: e.offsetY }
   boxEnd = { x: e.offsetX, y: e.offsetY }
+  if (clickdown2) {
+    const move = {
+      x: e.clientX - lastPos.x,
+      y: e.clientY - lastPos.y
+    }
+    const cosTheta = Math.cos(viewport.rotate)
+    const sinTheta = Math.sin(viewport.rotate)
+    const movebyrotate = {
+      x: move.x * cosTheta - move.y * sinTheta,
+      y: move.x * sinTheta + move.y * cosTheta
+    }
+    viewport.update({
+      xoffset: viewport.xoffset - movebyrotate.x * viewport.scale,
+      yoffset: viewport.yoffset - movebyrotate.y * viewport.scale
+    })
+    logger.debug(`鼠标移动 [${move.x},${move.y}]`)
+    lastPos = { x: e.clientX, y: e.clientY }
+  }
   if (selectedLine != null && selectedPointIdx != null && clickdown) {
     const wpt = canvasToWorld(e.offsetX, e.offsetY)
     selectedLine.geometies[selectedPointIdx] = { x: wpt.x, y: wpt.y }
@@ -231,7 +255,6 @@ function selectMouseMove(e) {
     if (idx !== -1) {
       globalData.lines[idx].geometies = [...selectedLine.geometies]
       viewport.update()
-      globalData.save()
     }
   }
   drawSelection()
@@ -239,6 +262,7 @@ function selectMouseMove(e) {
 
 function selectMouseUp(e) {
   clickdown = false
+  clickdown2 = false
   //点击在同一个地方，判断是点选
   if (
     e.button === 0 &&
@@ -249,18 +273,23 @@ function selectMouseUp(e) {
     if (id) {
       if (e.shiftKey) {
         selection = selection.filter((item) => item !== id)
+      } else if (e.ctrlKey) {
+        selection.push(id)
       } else {
         selection = []
         selection.push(id)
         if (selection.length == 1 && selection[0].startsWith('line')) {
           selectedLine = globalData.lines.find((l) => l.id === selection[0])
         }
+        if (selection.length == 1 && selection[0].startsWith('img')) {
+          selectedLine = null
+          selectedPointIdx = null
+        }
       }
     } else {
       selection = []
       selectedLine = null
       selectedPointIdx = null
-      resetToolbar()
     }
   }
   //处理框选，框选的逻辑是，只要在选框内则视作选择
@@ -270,18 +299,52 @@ function selectMouseUp(e) {
       selection = []
       return
     }
-    selection = selector.getIdsFromRect(
-      boxStart.x,
-      boxStart.y,
-      boxEnd.x,
-      boxEnd.y
-    )
+    if (e.ctrlKey) {
+      const temp = selector.getIdsFromRect(
+        boxStart.x,
+        boxStart.y,
+        boxEnd.x,
+        boxEnd.y
+      )
+      selection = [...temp, ...selection]
+    } else {
+      selection = selector.getIdsFromRect(
+        boxStart.x,
+        boxStart.y,
+        boxEnd.x,
+        boxEnd.y
+      )
+    }
+
     if (selection.length == 1 && selection[0].startsWith('line')) {
       selectedLine = globalData.lines.find((l) => l.id === selection[0])
     }
     logger.debug('选择了', selection)
   }
 
+  drawSelection()
+}
+
+function defaultWheel(event) {
+  let wxy = canvasToWorld(event.clientX, event.clientY)
+  // 阻止默认滚轮事件
+  // 计算缩放比例增量
+  let delta = event.deltaY > 0 ? 1.11 : 0.9
+  let dscale = viewport.scale
+  // 更新缩放比例
+  dscale *= delta
+  dscale = Math.min(Math.max(dscale, 0.01), 30) // 限制在 0.1 到 30 之间
+  logger.debug(`缩放 当前缩放级别: ${dscale.toFixed(3)}`)
+  //计算新的viewport参数，确保以鼠标为中心缩放
+  //原理是修改xyoffset wxy2-wxy1
+  viewport.scale = dscale
+  let wxy2 = canvasToWorld(event.clientX, event.clientY)
+  let dxoffset = wxy2.x - wxy.x
+  let dyoffset = wxy2.y - wxy.y
+  viewport.update({
+    xoffset: viewport.xoffset - dxoffset,
+    yoffset: viewport.yoffset - dyoffset
+  })
   drawSelection()
 }
 
@@ -334,13 +397,17 @@ function selectDblClick(e) {
     if (insertIdx >= 0) {
       selectedLine.geometies.splice(insertIdx, 0, insertPt)
       viewport.update()
-      globalData.save()
       drawSelection()
     }
   }
 }
 
 function selectKeyDown(e) {
+  if ((e.ctrlKey && e.key === 's') || e.key === 'S') {
+    //改成手动保存，以免在移动时触发性能瓶颈
+    globalData.save()
+  }
+
   if (e.key === 'Enter') {
     viewport.update()
   } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -368,7 +435,6 @@ function selectKeyDown(e) {
       selectedLine = null
       selectedPointIdx = null
       viewport.update()
-      globalData.save()
       drawSelection()
     }
   }
