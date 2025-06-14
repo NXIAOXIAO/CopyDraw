@@ -7,7 +7,6 @@ import logger from '../common/logger.js'
 viewport.loadFromLocalStorage()
 const dbName = 'CopyDrawDB'
 export const globalData = {
-  renderModer: 'default',
   imgs: [],
   lines: [],
   addLine(line) {

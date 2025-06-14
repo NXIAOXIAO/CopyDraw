@@ -13,6 +13,9 @@ import { resetToolbar } from '../controls/toolbar.js'
 
 export function installSelectOp() {
   removeAllEventListeners()
+  selection = []
+  selectedLine = null
+  selectedPointIdx = null
   addEventListenerWithTracking(canvas, 'mousedown', selectMouseDown)
   addEventListenerWithTracking(canvas, 'mousemove', selectMouseMove)
   addEventListenerWithTracking(canvas, 'mouseup', selectMouseUp)
@@ -38,6 +41,8 @@ let selectedPointIdx = null
 //移动元素
 let moveFlag = false
 let moveBegin = null
+
+let clickdown = false
 
 // 初始化选择器渲染
 export function renderSelector() {
@@ -178,16 +183,13 @@ function selectMouseDown(e) {
   clickPoint = { x: e.offsetX, y: e.offsetY }
   boxStart = { x: e.offsetX, y: e.offsetY }
   if (e.button == 0) {
+    clickdown = true
     //这里处理选择线后对点的操作，只选择一条线时
     if (selection.filter((sel) => sel.startsWith('line')).length > 0) {
       let id = selector.getIdFromCoordinates(clickPoint.x, clickPoint.y)
       selectedLine = globalData.lines.find((l) => l.id === id)
       if (selectedLine) {
         selectedPointIdx = getPointAt(selectedLine, e.offsetX, e.offsetY)
-        //在移动线上的点时，默认的移动事件不应该继续
-        // if (selectedPointIdx != null) {
-        //   clickdown = false
-        // }
         logger.debug('选择了', selectedLine, selectedPointIdx)
       }
     }
@@ -222,7 +224,7 @@ function selectMouseMove(e) {
   }
   moveBegin = { x: e.offsetX, y: e.offsetY }
   boxEnd = { x: e.offsetX, y: e.offsetY }
-  if (selectedLine != null && selectedPointIdx != null) {
+  if (selectedLine != null && selectedPointIdx != null && clickdown) {
     const wpt = canvasToWorld(e.offsetX, e.offsetY)
     selectedLine.geometies[selectedPointIdx] = { x: wpt.x, y: wpt.y }
     const idx = globalData.lines.findIndex((l) => l.id === selectedLine.id)
@@ -236,7 +238,7 @@ function selectMouseMove(e) {
 }
 
 function selectMouseUp(e) {
-  selectedPointIdx = null
+  clickdown = false
   //点击在同一个地方，判断是点选
   if (
     e.button === 0 &&
@@ -255,8 +257,9 @@ function selectMouseUp(e) {
         }
       }
     } else {
-      selection = [] //在空白处点击时，将目前选择清空
+      selection = []
       selectedLine = null
+      selectedPointIdx = null
       resetToolbar()
     }
   }
@@ -334,10 +337,6 @@ function selectDblClick(e) {
       globalData.save()
       drawSelection()
     }
-  } else {
-    selection = []
-    selectedLine = null
-    selectedPointIdx = null
   }
 }
 
@@ -351,10 +350,20 @@ function selectKeyDown(e) {
         const id1 = globalData.imgs.findIndex((img) => img.id === selection[0])
         if (id1 !== -1) globalData.imgs.splice(id1, 1)
       }
-      if (selection[0].startsWith('line')) {
+      if (selection[0].startsWith('line') && selectedPointIdx === null) {
         const id2 = globalData.lines.findIndex((l) => l.id === selection[0])
         if (id2 !== -1) globalData.lines.splice(id2, 1)
       }
+      if (selectedLine != null && selectedPointIdx !== null) {
+        selectedLine.geometies.splice(selectedPointIdx, 1)
+        if (selectedLine.geometies.length == 1) {
+          const id3 = globalData.lines.findIndex(
+            (l) => l.id === selectedLine.id
+          )
+          if (id3 !== -1) globalData.lines.splice(id3, 1)
+        }
+      }
+
       selection = []
       selectedLine = null
       selectedPointIdx = null

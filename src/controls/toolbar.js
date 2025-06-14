@@ -1,4 +1,3 @@
-import { globalData } from '../core/globalData.js'
 import Logger from '../common/logger.js'
 import { installDefaultOp } from '../operations/default.js'
 import { installLineDrawOp } from '../operations/lineDraw.js'
@@ -12,7 +11,6 @@ const tools = [
     tooltip: '默认浏览模式',
     icon: '../public/icon/arrow.png',
     listener: () => {
-      globalData.renderModer = 'default'
       installDefaultOp()
       Logger.info('当前是默认浏览模式')
       Logger.info('尝试兼容选择编辑模式')
@@ -22,7 +20,6 @@ const tools = [
     tooltip: '鼠标绘制模式',
     icon: '../public/icon/line_icon.ico',
     listener: () => {
-      globalData.renderModer = 'mouseDraw'
       installLineDrawOp()
       Logger.info('当前是鼠标绘制模式')
     }
@@ -31,7 +28,6 @@ const tools = [
     tooltip: '选择编辑模式',
     icon: '../public/icon/select.png',
     listener: () => {
-      globalData.renderModer = 'selectEdit'
       installSelectOp()
       Logger.info('当前是选择编辑模式')
     }
@@ -40,7 +36,6 @@ const tools = [
     tooltip: '渲染模式',
     icon: '../public/icon/render-icon.png',
     listener: () => {
-      globalData.renderModer = 'Render'
       installRendingOp()
       defaultRendering()
       Logger.info('当前渲染模式')
