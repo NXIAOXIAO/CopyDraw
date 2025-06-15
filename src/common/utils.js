@@ -21,3 +21,12 @@ export function worldToCanvas(wx, wy) {
   let cy = y2 + height / 2
   return { x: cx, y: cy }
 }
+
+export function isDraw(x1, y1, x2, y2, ctx) {
+  // 通过ctx获取canvas引用
+  const { width, height } = ctx.canvas
+  return (
+    (x1 >= 0 && x1 <= width && y1 >= 0 && y1 <= height) ||
+    (x2 >= 0 && x2 <= width && y2 >= 0 && y2 <= height)
+  )
+}

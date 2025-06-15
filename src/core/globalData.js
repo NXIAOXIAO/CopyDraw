@@ -26,6 +26,74 @@ export const globalData = {
   async load() {
     await getCompleteData(dbName)
     logger.info('已从数据库中加载')
+  },
+  export() {
+    const headers = ['id', 'points']
+    const rows = this.lines.map((line) => {
+      const id = line.id || ''
+      const points = Array.isArray(line.geometies)
+        ? line.geometies.map((pt) => `${pt.x},${pt.y}`).join(';')
+        : ''
+      return [id, points]
+    })
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(',')
+      )
+      .join('\r\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'lines.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+  importLinesFromCSV() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv'
+    input.onchange = (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const text = event.target.result
+        const lines = text.split(/\r?\n/).filter(Boolean)
+        if (lines.length < 2) return
+        // 跳过表头
+        for (let i = 1; i < lines.length; i++) {
+          const row = lines[i]
+          // 兼容逗号包裹的内容
+          const match = row.match(/^"([^"]*)","([^"]*)"$/)
+          if (!match) continue
+          const id = match[1]
+          const pointsStr = match[2]
+          const points = pointsStr
+            .split(';')
+            .map((pt) => {
+              const [x, y] = pt.split(',').map(Number)
+              if (isNaN(x) || isNaN(y)) return null
+              return { x, y }
+            })
+            .filter(Boolean)
+          if (points.length > 1) {
+            const line = new Line()
+            line.id = id
+            line.geometies = points
+            this.lines.push(line)
+          }
+        }
+        viewport.update()
+        this.save()
+        logger.info('已从CSV导入Line数据')
+      }
+      reader.readAsText(file)
+    }
+    input.click()
   }
 }
 window.globalData = globalData //for debug

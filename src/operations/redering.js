@@ -8,6 +8,7 @@ import {
   removeAllEventListeners
 } from '../common/eventListeners.js'
 import { viewport } from '../core/viewport.js'
+import { isDraw } from '../common/utils.js'
 
 export function installRendingOp() {
   logger.debug('注册渲染操作事件')
@@ -22,30 +23,76 @@ export function installRendingOp() {
 
 let rendering = defaultRendering
 
-//默认透明背景
-export function defaultRendering() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx3.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.save()
-  ctx.globalAlpha = 1.0
-  ctx.strokeStyle = '#FFFFFF'
-  ctx.lineWidth = 3
+// 默认透明背景
+let renderingTask = null // 用于跟踪当前绘制任务
 
+export function stopRendering() {
+  if (renderingTask && renderingTask.cancel) {
+    renderingTask.cancel()
+  }
+}
+
+export function defaultRendering() {
+  // 首先要筛选出在viewport内的线段
+  let segment = []
   for (const line of globalData.lines) {
-    if (!line.geometies || line.geometies.length < 2) continue
-    ctx.beginPath()
-    for (let i = 0; i < line.geometies.length; i++) {
-      const { x, y } = line.geometies[i]
-      const { x: cx, y: cy } = worldToCanvas(x, y)
-      if (i === 0) {
-        ctx.moveTo(cx, cy)
-      } else {
-        ctx.lineTo(cx, cy)
+    for (let i = 0; i < line.geometies.length - 1; i++) {
+      const ps = worldToCanvas(line.geometies[i].x, line.geometies[i].y)
+      const pe = worldToCanvas(line.geometies[i + 1].x, line.geometies[i + 1].y)
+      if (isDraw(ps.x, ps.y, pe.x, pe.y, ctx)) {
+        segment.push({ lineid: line.id, s: ps, e: pe })
       }
     }
-    ctx.stroke()
   }
-  ctx.restore()
+
+  logger.debug('rendering', segment)
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx3.clearRect(0, 0, canvas.width, canvas.height)
+
+  // 如果有正在进行的绘制任务，取消它
+  if (renderingTask && renderingTask.cancel) {
+    renderingTask.cancel()
+  }
+
+  let i = 0
+  let cancelled = false
+
+  function cancel() {
+    cancelled = true
+  }
+
+  renderingTask = { cancel }
+
+  // 批量绘制，每帧渲染多个线段以提升速度
+  const BATCH_SIZE = 10 // 每帧绘制的线段数，可根据需要调整
+
+  function drawNextSegment() {
+    ctx.save()
+    ctx.globalAlpha = 1.0
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth = 2
+    if (cancelled) {
+      ctx.restore()
+      return
+    }
+    let count = 0
+    while (i < segment.length && count < BATCH_SIZE) {
+      const seg = segment[i]
+      ctx.beginPath()
+      ctx.moveTo(seg.s.x, seg.s.y)
+      ctx.lineTo(seg.e.x, seg.e.y)
+      ctx.stroke()
+      i++
+      count++
+    }
+    ctx.restore()
+    if (i < segment.length && !cancelled) {
+      requestAnimationFrame(drawNextSegment)
+    }
+  }
+
+  requestAnimationFrame(drawNextSegment)
 }
 
 // 素描画风线条渲染

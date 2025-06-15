@@ -1,6 +1,7 @@
 import { viewport } from '../core/viewport.js'
 import logger from './logger.js'
 import { worldToCanvas } from './utils.js'
+import { isDraw } from './utils.js'
 
 class Line {
   constructor(id) {
@@ -37,15 +38,6 @@ class Line {
       ctx.stroke()
     }
   }
-}
-
-function isDraw(x1, y1, x2, y2, ctx) {
-  // 通过ctx获取canvas引用
-  const { width, height } = ctx.canvas
-  return (
-    (x1 >= 0 && x1 <= width && y1 >= 0 && y1 <= height) ||
-    (x2 >= 0 && x2 <= width && y2 >= 0 && y2 <= height)
-  )
 }
 
 export default Line

@@ -4,13 +4,18 @@ import { installLineDrawOp } from '../operations/lineDraw.js'
 import { installSelectOp } from '../operations/select.js'
 import { viewport } from '../core/viewport.js'
 import { canvas } from './canvas.js'
-import { defaultRendering, installRendingOp } from '../operations/redering.js'
+import {
+  defaultRendering,
+  installRendingOp,
+  stopRendering
+} from '../operations/redering.js'
 
 const tools = [
   {
     tooltip: '默认浏览模式',
     icon: '../public/icon/arrow.png',
     listener: () => {
+      stopRendering()
       installDefaultOp()
       Logger.info('当前是默认浏览模式')
       Logger.info('尝试兼容选择编辑模式')
@@ -20,6 +25,7 @@ const tools = [
     tooltip: '鼠标绘制模式',
     icon: '../public/icon/line_icon.ico',
     listener: () => {
+      stopRendering()
       installLineDrawOp()
       Logger.info('当前是鼠标绘制模式')
     }
@@ -28,6 +34,7 @@ const tools = [
     tooltip: '选择编辑模式',
     icon: '../public/icon/select.png',
     listener: () => {
+      stopRendering()
       installSelectOp()
       Logger.info('当前是选择编辑模式')
     }

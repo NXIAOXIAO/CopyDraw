@@ -22,6 +22,7 @@ export function installSelectOp() {
   addEventListenerWithTracking(canvas, 'mouseup', selectMouseUp)
   addEventListenerWithTracking(canvas, 'dblclick', selectDblClick)
   addEventListenerWithTracking(document, 'keydown', selectKeyDown)
+  viewport.update()
 }
 
 //让在选择时也可以正常移动视图
@@ -196,7 +197,6 @@ function selectMouseDown(e) {
       selectedLine = globalData.lines.find((l) => l.id === id)
       if (selectedLine) {
         selectedPointIdx = getPointAt(selectedLine, e.offsetX, e.offsetY)
-        logger.debug('选择了', selectedLine, selectedPointIdx)
         clickdown2 = false
       }
     }
@@ -319,9 +319,8 @@ function selectMouseUp(e) {
     if (selection.length == 1 && selection[0].startsWith('line')) {
       selectedLine = globalData.lines.find((l) => l.id === selection[0])
     }
-    logger.debug('选择了', selection)
   }
-
+  if (selection.length !== 0) logger.debug('选择了', selection)
   drawSelection()
 }
 
