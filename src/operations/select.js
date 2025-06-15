@@ -406,6 +406,7 @@ function selectKeyDown(e) {
   if ((e.ctrlKey && e.key === 's') || e.key === 'S') {
     //改成手动保存，以免在移动时触发性能瓶颈
     globalData.save()
+    e.preventDefault()
   }
 
   if (e.key === 'Enter') {

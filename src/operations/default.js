@@ -114,7 +114,7 @@ async function defaultKeyDown(event) {
       globalData.addImg(img)
     }
   }
-  //event.preventDefault()
+  event.preventDefault()
 }
 
 async function getImageBlobFromClipboad() {
