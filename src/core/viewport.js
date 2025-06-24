@@ -1,6 +1,5 @@
 /**
- * 提供核心坐标转换函数和viewport状态参数
- * 完全兼容原 src/core/viewport.js
+ * 完全复刻原 src/core/viewport.js，提供核心坐标转换与状态同步本地存储
  */
 export class Viewport {
   constructor() {

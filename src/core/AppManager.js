@@ -11,9 +11,14 @@ import { CommandInvoker } from '../commands/CommandInvoker.js'
 import { EventEmitter } from '../common/EventEmitter.js'
 
 export class AppManager extends EventEmitter {
-  constructor() {
+  /**
+   * @param {Object} options
+   * @param {boolean} options.debug 是否开启调试模式
+   */
+  constructor(options = {}) {
     super()
     if (AppManager._instance) return AppManager._instance
+    this.debug = !!options.debug
     this.dataManager = new DataManager()
     this.viewport = new Viewport()
     this.commandInvoker = new CommandInvoker(this.dataManager)
@@ -21,9 +26,18 @@ export class AppManager extends EventEmitter {
     this.modes = {}
     this.uiEventListener = this._onUIEvent.bind(this)
     AppManager._instance = this
+    // 移除 debug 数据插入逻辑
+    if (this.debug) {
+      console.log('[AppManager] Debug mode enabled')
+    }
   }
 
   registerModes(modeInstances) {
+    if (this.debug) console.log('[AppManager] registerModes', modeInstances)
+    // 监听 elementsChanged 事件，输出调试日志
+    this.dataManager.on('elementsChanged', (payload) => {
+      if (this.debug) console.log('[AppManager] elementsChanged 事件触发', payload)
+    })
     modeInstances.forEach((mode) => {
       this.modes[mode.name] = mode
       mode.setContext({
@@ -37,6 +51,11 @@ export class AppManager extends EventEmitter {
   }
 
   switchMode(modeName) {
+    if (this.debug) console.log('[AppManager] switchMode', modeName)
+    if (this.currentMode && this.currentMode.name === modeName) {
+      if (this.debug) console.log('[AppManager] switchMode: already in mode', modeName)
+      return
+    }
     if (this.currentMode) this.currentMode.deactivate()
     this.currentMode = this.modes[modeName]
     if (this.currentMode) this.currentMode.activate()
@@ -44,6 +63,7 @@ export class AppManager extends EventEmitter {
   }
 
   _onUIEvent(eventType, payload) {
+    if (this.debug) console.log('[AppManager] _onUIEvent', eventType, payload)
     if (!this.currentMode) return
     this.currentMode.handleUIEvent(eventType, payload)
   }
@@ -53,12 +73,14 @@ export class AppManager extends EventEmitter {
    * @param {HTMLElement|Document} root
    */
   bindUI(root) {
+    if (this.debug) console.log('[AppManager] bindUI')
     root.addEventListener('uievent', (e) => {
       this._onUIEvent(e.detail.type, e.detail.payload)
     })
   }
 
   notifyUI(eventType, payload) {
+    if (this.debug) console.log('[AppManager] notifyUI', eventType, payload)
     this.emit(eventType, payload)
   }
 }

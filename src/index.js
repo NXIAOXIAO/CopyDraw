@@ -16,7 +16,7 @@ import { Render } from './render/Render.js'
 console.log('[CopyDraw] index.js loaded')
 
 // ===== 初始化核心层 =====
-const appManager = new AppManager()
+const appManager = new AppManager({ debug: true })
 window.AppManager = appManager
 console.log('[CopyDraw] AppManager created:', appManager)
 
@@ -37,26 +37,64 @@ const leftBar = new LeftBar(document.getElementById('leftbar'))
 console.log('[CopyDraw] CanvasArea init...')
 const canvasArea = new CanvasArea(document.getElementById('main'))
 
+// 监听 window resize，动态调整 viewport 和 canvas 尺寸
+function updateViewportAndCanvas() {
+  // 以 #main 区域为基准
+  const main = document.getElementById('main')
+  const rect = main.getBoundingClientRect()
+  const width = rect.width
+  const height = rect.height
+  // 更新 viewport 参数（如有 setSize 方法可用，否则直接赋值）
+  if (appManager.viewport) {
+    appManager.viewport.width = width
+    appManager.viewport.height = height
+    // 如有 setSize 方法可用可调用
+    if (typeof appManager.viewport.setSize === 'function') {
+      appManager.viewport.setSize(width, height)
+    }
+  }
+  canvasArea.resizeCanvases(width, height)
+}
+window.addEventListener('resize', updateViewportAndCanvas)
+// 首次初始化时也调用一次
+updateViewportAndCanvas()
+
 // AppManager 绑定 UI 层事件流入口（监听 document，确保冒泡事件能收到）
 appManager.bindUI(document)
 console.log('[CopyDraw] AppManager bindUI(document) done.')
 
 // ====== 渲染器绑定 ======
-const dataCanvas = document.getElementById('dataCanvas')
-const render = new Render(dataCanvas.getContext('2d'), appManager.viewport)
+// 注意：Render 需要在 CanvasArea 初始化后再创建，且只传入 canvasArea
+const render = new Render(canvasArea)
 console.log('[CopyDraw] Render instance created:', render)
 
 // 元素变更时渲染
-appManager.dataManager.on('elementsChanged', ({ elements }) => {
-  console.log('[CopyDraw] elementsChanged:', elements)
-  canvasArea.render(elements, render)
+appManager.dataManager.on('elementsChanged', () => {
+  if (canvasArea && appManager.dataManager && appManager.viewport && render) {
+    console.log('[CopyDraw] elementsChanged: 调用 canvasArea.render', {
+      elements: appManager.dataManager.getAllElements(),
+      viewport: appManager.viewport,
+      render
+    })
+  }
+  canvasArea.render(appManager.dataManager, appManager.viewport, render)
 })
 
 // 模式切换时调整渲染表现
 appManager.on('modeChange', ({ mode }) => {
   console.log('[CopyDraw] modeChange:', mode)
+  if (render) console.log('[CopyDraw] 调用 render.setMode:', mode)
   render.setMode(mode)
-  canvasArea.render(appManager.dataManager.getAllElements(), render)
+  if (canvasArea && appManager.dataManager && appManager.viewport && render) {
+    console.log('[CopyDraw] 调用 canvasArea.render', {
+      elements: appManager.dataManager.getAllElements(),
+      viewport: appManager.viewport,
+      render
+    })
+  }
+  canvasArea.render(appManager.dataManager, appManager.viewport, render)
+  // 激活左侧按钮样式
+  leftBar.setActive(mode)
 })
 
 // 临时绘制
@@ -71,9 +109,8 @@ appManager.on('tempDrawEnd', () => {
 
 // 选中变化时刷新
 appManager.on('selectionChanged', ({ id }) => {
-  console.log('[CopyDraw] selectionChanged:', id)
   appManager.dataManager.getAllElements().forEach((ele) => (ele.selected = ele.id === id))
-  canvasArea.render(appManager.dataManager.getAllElements(), render)
+  canvasArea.render(appManager.dataManager, appManager.viewport, render)
 })
 
 // 撤销、重做、模式切换
@@ -90,22 +127,20 @@ document.addEventListener('uievent', async (e) => {
 })
 
 // ===== 初始化默认模式 =====
-// 等 DataManager 数据加载后再切换默认模式，否则所有数据未加载会导致 UI 不刷新
+// 用 hasInit 标记只执行一次初始化渲染，避免多次重复渲染
+let hasInit = false
 appManager.dataManager.on('elementsLoaded', () => {
-  console.log('[CopyDraw] elementsLoaded, switching to default mode: edit-view')
-  appManager.switchMode('edit-view')
-  // 首次刷新
-  canvasArea.render(appManager.dataManager.getAllElements(), render)
+  if (!hasInit) {
+    hasInit = true
+    appManager.switchMode('edit-view')
+    canvasArea.render(appManager.dataManager, appManager.viewport, render)
+  }
 })
 
-// 模式切换时调整渲染表现
-appManager.on('modeChange', ({ mode }) => {
-  console.log('[CopyDraw] modeChange:', mode)
-  render.setMode(mode)
-  canvasArea.render(appManager.dataManager.getAllElements(), render)
-
-  // 激活左侧按钮样式
-  leftBar.setActive(mode)
+// 元素变更时渲染（排除初始化阶段）
+appManager.dataManager.on('elementsChanged', () => {
+  if (!hasInit) return // 初始化阶段不渲染
+  canvasArea.render(appManager.dataManager, appManager.viewport, render)
 })
 
 // 额外调试输出

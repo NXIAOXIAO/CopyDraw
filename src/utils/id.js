@@ -1,7 +1,5 @@
-/**
- * 生成唯一ID
- * @param {string} prefix
- */
-export function generateId(prefix = '') {
-  return prefix + '_' + Math.random().toString(36).substr(2, 9)
+//生成唯一id方案
+export function generateId(type) {
+  const randomStr = Math.random().toString(36).substring(2, 8)
+  return type + Date.now() + '-' + randomStr
 }

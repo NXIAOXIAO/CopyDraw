@@ -16,11 +16,12 @@ export class ViewEditMode extends BaseMode {
     this.bindEvent(canvas, 'mousedown', this._onMouseDown.bind(this))
     this.bindEvent(canvas, 'mousemove', this._onMouseMove.bind(this))
     this.bindEvent(canvas, 'mouseup', this._onMouseUp.bind(this))
+    // 激活时不再主动 notifyUI('elementsChanged')，只监听数据层变化
   }
 
   _onMouseDown(e) {
     const { dataManager, viewport } = this.context
-    const pos = viewport.screenToCanvas(e.offsetX, e.offsetY)
+    const pos = viewport.viewportToWorld(e.offsetX, e.offsetY)
     // 简化：只选第一个命中的元素
     const ele = dataManager.getAllElements().find((el) => isInElement(pos, el))
     if (ele) {
@@ -33,7 +34,7 @@ export class ViewEditMode extends BaseMode {
   _onMouseMove(e) {
     if (!this._dragState) return
     const { viewport, commandInvoker, dataManager } = this.context
-    const pos = viewport.screenToCanvas(e.offsetX, e.offsetY)
+    const pos = viewport.viewportToWorld(e.offsetX, e.offsetY)
     const ele = dataManager.getElement(this._dragState.id)
     if (ele) {
       const dx = pos.x - this._dragState.start.x

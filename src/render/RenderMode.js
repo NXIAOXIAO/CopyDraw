@@ -18,7 +18,7 @@ export class RenderMode {
       ctx.save()
       ctx.globalAlpha = 0.7
       ctx.fillStyle = '#ff0'
-      const { x, y } = viewport.canvasToScreen(ele.x, ele.y)
+      const { x, y } = viewport.worldToViewport(ele.x, ele.y)
       ctx.fillRect(x, y, ele.width * viewport.scale, ele.height * viewport.scale)
       ctx.restore()
     }

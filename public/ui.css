@@ -112,7 +112,7 @@ button.visiable {
 }
 
 /* --------------------分割线----------------------- */
-#viewport-info {
+#info {
   position: fixed;
   z-index: 4;
   left: 16px;
