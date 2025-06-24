@@ -24,7 +24,8 @@ export class TopBar {
   }
 
   emitEvent(type, payload = {}) {
-    const evt = new CustomEvent('uievent', { detail: { type, payload } })
+    // 必须 bubbles:true，否则冒泡不到 body
+    const evt = new CustomEvent('uievent', { detail: { type, payload }, bubbles: true })
     this.root.dispatchEvent(evt)
   }
 }

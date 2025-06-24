@@ -18,15 +18,11 @@ export class AppManager extends EventEmitter {
     this.viewport = new Viewport()
     this.commandInvoker = new CommandInvoker(this.dataManager)
     this.currentMode = null
-    this.modes = {} // {name: modeInstance}
+    this.modes = {}
     this.uiEventListener = this._onUIEvent.bind(this)
     AppManager._instance = this
   }
 
-  /**
-   * 注册所有业务模式
-   * @param {Array<BaseMode>} modeInstances
-   */
   registerModes(modeInstances) {
     modeInstances.forEach((mode) => {
       this.modes[mode.name] = mode
@@ -35,15 +31,11 @@ export class AppManager extends EventEmitter {
         dataManager: this.dataManager,
         viewport: this.viewport,
         commandInvoker: this.commandInvoker,
-        eventBus: this // 事件流通道
+        eventBus: this
       })
     })
   }
 
-  /**
-   * 切换业务模式
-   * @param {string} modeName
-   */
   switchMode(modeName) {
     if (this.currentMode) this.currentMode.deactivate()
     this.currentMode = this.modes[modeName]
@@ -51,19 +43,14 @@ export class AppManager extends EventEmitter {
     this.emit('modeChange', { mode: modeName })
   }
 
-  /**
-   * 处理 UI 层 emit 的事件（业务调度入口）
-   * @param {string} eventType
-   * @param {object} payload
-   */
   _onUIEvent(eventType, payload) {
     if (!this.currentMode) return
     this.currentMode.handleUIEvent(eventType, payload)
   }
 
   /**
-   * UI 层注册事件回调（如 UI 层 emit('xxx', payload)）
-   * @param {HTMLElement} root
+   * 监听 document/body 上的 uievent，确保全局都能收到
+   * @param {HTMLElement|Document} root
    */
   bindUI(root) {
     root.addEventListener('uievent', (e) => {
@@ -71,12 +58,7 @@ export class AppManager extends EventEmitter {
     })
   }
 
-  /**
-   * 业务变更时向 UI 层发送通知（如 elements 变更等）
-   * @param {string} eventType
-   * @param {object} payload
-   */
   notifyUI(eventType, payload) {
-    this.emit(eventType, payload) // UI 层通过订阅监听
+    this.emit(eventType, payload)
   }
 }

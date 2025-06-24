@@ -11,10 +11,6 @@ export class CanvasArea {
     this.selectCanvas = mainRoot.querySelector('#selectCanvas')
   }
 
-  /**
-   * 绑定所有UI事件，仅 emit，不处理业务
-   * @param {Function} emit
-   */
   bindEventEmit(emit) {
     // 这里只处理 pointer 事件，实际业务交给 mode
     ;['mousedown', 'mousemove', 'mouseup', 'mouseleave'].forEach((type) => {
@@ -24,19 +20,10 @@ export class CanvasArea {
     })
   }
 
-  /**
-   * 渲染指定元素集合
-   * @param {Array<Element>} elements
-   * @param {Render} render
-   */
   render(elements, render) {
     render.render(elements)
   }
 
-  /**
-   * 渲染临时绘制
-   * @param {object} drawState
-   */
   renderTemp(drawState) {
     const ctx = this.temporaryCanvas.getContext('2d')
     ctx.clearRect(0, 0, this.temporaryCanvas.width, this.temporaryCanvas.height)
@@ -45,12 +32,11 @@ export class CanvasArea {
     ctx.strokeStyle = '#f78d23'
     ctx.lineWidth = 2
     ctx.setLineDash([4, 2])
-    ctx.strokeRect(
-      drawState.x0,
-      drawState.y0,
-      drawState.x1 - drawState.x0,
-      drawState.y1 - drawState.y0
-    )
+    const x = Math.min(drawState.x0, drawState.x1)
+    const y = Math.min(drawState.y0, drawState.y1)
+    const w = Math.abs(drawState.x1 - drawState.x0)
+    const h = Math.abs(drawState.y1 - drawState.y0)
+    ctx.strokeRect(x, y, w, h)
     ctx.restore()
   }
 }
