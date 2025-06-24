@@ -1,36 +1,41 @@
 import { Element } from './Element.js'
 
 /**
- * 图片元素类
- * @extends Element
+ * ImgElement
+ * 图片元素
  */
 export class ImgElement extends Element {
-  /**
-   * @param {any} imgdata - 图片数据
-   * @param {number} [x=0] - x 坐标
-   * @param {number} [y=0] - y 坐标
-   * @param {number} [oA=0] - 初始角度
-   */
-  constructor(imgdata, x = 0, y = 0, oA = 0) {
-    super('img')
-    this.imgdata = imgdata
+  constructor({ id, x, y, width, height, src }) {
+    super({ id, type: 'img' })
     this.x = x
     this.y = y
-    this.oA = oA
+    this.width = width
+    this.height = height
+    this.src = src // 图片 base64 或 url
+    this._img = null
+    this._imgLoaded = false
+    if (src) this._loadImg()
   }
 
-  /**
-   * 选择器渲染（供 Selector 使用）
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {Viewport} viewport
-   */
+  _loadImg() {
+    this._img = new window.Image()
+    this._img.onload = () => {
+      this._imgLoaded = true
+    }
+    this._img.src = this.src
+  }
+
   selectorRender(ctx, viewport) {
-    const canvasPos = viewport.worldToViewport(this.x, this.y)
-    const [newW, newH] = [this.imgdata.width / viewport.scale, this.imgdata.height / viewport.scale]
+    // 高亮外框+锚点
+    const { x, y } = viewport.canvasToScreen(this.x, this.y)
+    const w = this.width * viewport.scale,
+      h = this.height * viewport.scale
     ctx.save()
-    ctx.translate(canvasPos.x, canvasPos.y)
-    ctx.rotate(-(viewport.rotate - this.oA))
-    ctx.fillRect(-newW / 2, -newH / 2, newW, newH)
+    ctx.strokeStyle = '#0099ff'
+    ctx.lineWidth = 2
+    ctx.setLineDash([4, 2])
+    ctx.strokeRect(x, y, w, h)
+    ctx.setLineDash([])
     ctx.restore()
   }
 }

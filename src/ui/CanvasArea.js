@@ -1,96 +1,56 @@
-import { Constants } from '../common/Constants.js'
-import { Viewport } from '../core/Viewport.js'
-
+/**
+ * CanvasArea
+ * 负责 canvas 渲染与事件分发
+ */
 export class CanvasArea {
-  /**
-   *
-   * @param {DOMElement} containerElement
-   * @param {EventEmitter} eventEmitter
-   * @param {Viewport} viewport
-   */
-  constructor(containerElement, eventEmitter, viewport) {
-    this.containerElement = containerElement
-    this.eventEmitter = eventEmitter
-    // 获取父容器实际像素宽高
-    const rect = containerElement.getBoundingClientRect()
-    viewport.width = rect.width
-    viewport.height = rect.height
-    this._initCanvases()
-    this.resizeCanvases(viewport.width, viewport.height)
-  }
-
-  _initCanvases() {
-    // 创建背景 Canvas
-    this.backgroundCanvas = document.createElement('canvas')
-    this.backgroundCanvas.id = 'backgroundCanvas'
-    this.backgroundCanvas.style.zIndex = '1'
-    this.backgroundCanvas.style.position = 'absolute'
-    this.backgroundCanvas.style.pointerEvents = 'none'
-    this.backgroundCtx = this.backgroundCanvas.getContext('2d')
-    this.containerElement.appendChild(this.backgroundCanvas)
-
-    // 创建数据 Canvas (主要绘制内容)
-    this.dataCanvas = document.createElement('canvas')
-    this.dataCanvas.id = 'dataCanvas'
-    this.dataCanvas.style.zIndex = '2'
-    this.dataCanvas.style.position = 'absolute'
-    this.dataCtx = this.dataCanvas.getContext('2d')
-    this.containerElement.appendChild(this.dataCanvas)
-
-    // 创建临时 Canvas (用于绘制过程中的临时线条、选择框等)
-    this.temporaryCanvas = document.createElement('canvas')
-    this.temporaryCanvas.id = 'temporaryCanvas'
-    this.temporaryCanvas.style.zIndex = '3' // 确保在最顶层
-    this.temporaryCanvas.style.position = 'absolute'
-    this.temporaryCanvas.style.pointerEvents = 'none' // 确保是dataCanvas接收鼠标事件
-    this.temporaryCtx = this.temporaryCanvas.getContext('2d')
-    this.containerElement.appendChild(this.temporaryCanvas)
-
-    // 设置所有 Canvas 的背景为透明，以便层级叠加可见
-    this.backgroundCanvas.style.backgroundColor = 'transparent'
-    this.dataCanvas.style.backgroundColor = 'transparent'
-    this.temporaryCanvas.style.backgroundColor = 'transparent'
+  constructor(mainRoot) {
+    this.mainRoot = mainRoot
+    this.backgroundCanvas = mainRoot.querySelector('#backgroundCanvas')
+    this.dataCanvas = mainRoot.querySelector('#dataCanvas')
+    this.temporaryCanvas = mainRoot.querySelector('#temporaryCanvas')
+    this.selectCanvas = mainRoot.querySelector('#selectCanvas')
   }
 
   /**
-   * 调整所有 Canvas 元素的尺寸。
-   * @param {number} width - 新的宽度。
-   * @param {number} height - 新的高度。
+   * 绑定所有UI事件，仅 emit，不处理业务
+   * @param {Function} emit
    */
-  resizeCanvases(width, height) {
-    // 设置 Canvas 元素的 DOM 尺寸
-    this.backgroundCanvas.style.width = `${width}px`
-    this.backgroundCanvas.style.height = `${height}px`
-    this.dataCanvas.style.width = `${width}px`
-    this.dataCanvas.style.height = `${height}px`
-    this.temporaryCanvas.style.width = `${width}px`
-    this.temporaryCanvas.style.height = `${height}px`
-
-    // 设置 Canvas 绘图表面的分辨率
-    // 这对于 Retina 屏幕非常重要，否则会模糊
-    // 虽然还不知道为什么，但是加上先
-    const dpr = window.devicePixelRatio || 1
-    this.backgroundCanvas.width = width * dpr
-    this.backgroundCanvas.height = height * dpr
-    this.dataCanvas.width = width * dpr
-    this.dataCanvas.height = height * dpr
-    this.temporaryCanvas.width = width * dpr
-    this.temporaryCanvas.height = height * dpr
-
-    // 缩放所有 Context，以匹配高 DPI
-    this.backgroundCtx.scale(dpr, dpr)
-    this.dataCtx.scale(dpr, dpr)
-    this.temporaryCtx.scale(dpr, dpr)
-
-    console.log(`Canvases resized to ${width}x${height} (DPR: ${dpr})`)
+  bindEventEmit(emit) {
+    // 这里只处理 pointer 事件，实际业务交给 mode
+    ;['mousedown', 'mousemove', 'mouseup', 'mouseleave'].forEach((type) => {
+      this.dataCanvas.addEventListener(type, (e) => {
+        emit(type, { x: e.offsetX, y: e.offsetY, raw: e })
+      })
+    })
   }
 
   /**
-   * 获取数据层 Canvas 元素。
-   * 用于事件监听器（如鼠标事件）。
-   * @returns {HTMLCanvasElement | null}
+   * 渲染指定元素集合
+   * @param {Array<Element>} elements
+   * @param {Render} render
    */
-  getDataCanvas() {
-    return this.dataCanvas
+  render(elements, render) {
+    render.render(elements)
+  }
+
+  /**
+   * 渲染临时绘制
+   * @param {object} drawState
+   */
+  renderTemp(drawState) {
+    const ctx = this.temporaryCanvas.getContext('2d')
+    ctx.clearRect(0, 0, this.temporaryCanvas.width, this.temporaryCanvas.height)
+    if (!drawState) return
+    ctx.save()
+    ctx.strokeStyle = '#f78d23'
+    ctx.lineWidth = 2
+    ctx.setLineDash([4, 2])
+    ctx.strokeRect(
+      drawState.x0,
+      drawState.y0,
+      drawState.x1 - drawState.x0,
+      drawState.y1 - drawState.y0
+    )
+    ctx.restore()
   }
 }

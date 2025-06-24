@@ -1,35 +1,40 @@
-import { generateId } from '../utils/id.js'
 import { Element } from './Element.js'
 
 /**
- * 矩形元素类
- * @extends Element
+ * RectElement
+ * 矩形元素，继承自 Element
  */
 export class RectElement extends Element {
-  /**
-   * @param {number} x - 左上角 x 坐标
-   * @param {number} y - 左上角 y 坐标
-   * @param {number} width - 宽度
-   * @param {number} height - 高度
-   */
-  constructor(x = 0, y = 0, width = 100, height = 100) {
-    super('rect')
+  constructor({ id, x, y, width, height, style = {} }) {
+    super({ id, type: 'rect' })
     this.x = x
     this.y = y
     this.width = width
     this.height = height
+    this.style = style
   }
 
-  /**
-   * 绘制选中态（供 Selector 使用）
-   * @param {CanvasRenderingContext2D} ctx
-   */
-  selectorRender(ctx) {
+  selectorRender(ctx, viewport) {
+    // 高亮矩形边框与八个锚点
+    const { x, y } = viewport.canvasToScreen(this.x, this.y)
+    const w = this.width * viewport.scale,
+      h = this.height * viewport.scale
     ctx.save()
-    ctx.strokeStyle = '#4A90E2'
+    ctx.strokeStyle = '#0099ff'
     ctx.lineWidth = 2
     ctx.setLineDash([4, 2])
-    ctx.strokeRect(this.x, this.y, this.width, this.height)
+    ctx.strokeRect(x, y, w, h)
+    ctx.setLineDash([])
+    // 锚点
+    for (let dx of [0, w])
+      for (let dy of [0, h]) {
+        ctx.beginPath()
+        ctx.arc(x + dx, y + dy, 5, 0, Math.PI * 2)
+        ctx.fillStyle = '#fff'
+        ctx.fill()
+        ctx.strokeStyle = '#0099ff'
+        ctx.stroke()
+      }
     ctx.restore()
   }
 }

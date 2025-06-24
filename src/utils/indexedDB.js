@@ -1,57 +1,78 @@
-// IndexedDB工具，迁移自ref/common/indexedDB.js
-export function openDatabase(dbName) {
+/**
+ * IndexedDB 工具：所有元素存储在 elements 表
+ */
+const DB_NAME = 'CopyDrawDB'
+const STORE_NAME = 'elements'
+const DB_VERSION = 1
+
+/**
+ * 打开数据库
+ */
+export function openIDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 1)
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result
-      if (!db.objectStoreNames.contains('imgs')) {
-        db.createObjectStore('imgs', { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains('lines')) {
-        db.createObjectStore('lines', { keyPath: 'id' })
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = function (e) {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' })
       }
     }
-    request.onsuccess = (event) => {
-      resolve(event.target.result)
-    }
-    request.onerror = (event) => {
-      reject(event.target.error)
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = (e) => reject(e.target.error)
+  })
+}
+
+/**
+ * 保存元素
+ * @param {IDBDatabase} db
+ * @param {object} element
+ */
+export function saveElement(db, element) {
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      tx.objectStore(STORE_NAME).put(element)
+      tx.oncomplete = () => resolve()
+      tx.onerror = (e) => reject(e.target.error)
+    } catch (e) {
+      reject(e)
     }
   })
 }
-export async function saveDataToDB(dbName, storeName, data) {
-  const db = await openDatabase(dbName)
-  return await new Promise((resolve, reject) => {
-    const transaction = db.transaction([storeName], 'readwrite')
-    const store = transaction.objectStore(storeName)
-    const request = store.clear()
-    request.onsuccess = () => {
-      data.forEach((item) => {
-        store.add(item)
-      })
-      transaction.oncomplete = () => {
-        resolve()
-      }
-      transaction.onerror = (event) => {
-        reject(event.target.error)
-      }
-    }
-    request.onerror = (event) => {
-      reject(event.target.error)
+
+/**
+ * 删除元素
+ * @param {IDBDatabase} db
+ * @param {string} id
+ */
+export function deleteElement(db, id) {
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      tx.objectStore(STORE_NAME).delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = (e) => reject(e.target.error)
+    } catch (e) {
+      reject(e)
     }
   })
 }
-export async function getDataFromDB(dbName, storeName) {
-  const db = await openDatabase(dbName)
-  return await new Promise((resolve, reject) => {
-    const transaction = db.transaction([storeName], 'readonly')
-    const store = transaction.objectStore(storeName)
-    const request = store.getAll()
-    request.onsuccess = () => {
-      resolve(request.result)
-    }
-    request.onerror = (event) => {
-      reject(event.target.error)
+
+/**
+ * 加载所有元素
+ * @param {IDBDatabase} db
+ * @returns {Promise<Array>}
+ */
+export function loadAllElements(db) {
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const req = store.getAll()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = (e) => reject(e.target.error)
+    } catch (e) {
+      reject(e)
     }
   })
 }

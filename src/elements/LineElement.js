@@ -1,47 +1,39 @@
 import { Element } from './Element.js'
-import { Viewport } from '../core/Viewport.js'
-// 线元素类
+
+/**
+ * LineElement
+ * 直线元素
+ */
 export class LineElement extends Element {
-  constructor() {
-    super('line')
-    this.geometies = []
+  constructor({ id, x1, y1, x2, y2, style = {} }) {
+    super({ id, type: 'line' })
+    this.x1 = x1
+    this.y1 = y1
+    this.x2 = x2
+    this.y2 = y2
+    this.style = style
   }
-  addPoint(x, y) {
-    this.geometies.push({ x, y })
-  }
-  removePoint(x, y) {
-    this.geometies = this.geometies.filter((p) => p.x !== x || p.y !== y)
-  }
-  removePointAt(index) {
-    if (index >= 0 && index < this.geometies.length) {
-      this.geometies.splice(index, 1)
-    }
-  }
-  insertPointAt(index, x, y) {
-    if (index >= 0 && index <= this.geometies.length) {
-      this.geometies.splice(index, 0, { x, y })
-    }
-  }
-  /**
-   * 选择器渲染（供 Selector 使用）
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {Viewport} viewport
-   */
+
   selectorRender(ctx, viewport) {
+    // 高亮线段
+    const p1 = viewport.canvasToScreen(this.x1, this.y1)
+    const p2 = viewport.canvasToScreen(this.x2, this.y2)
+    ctx.save()
+    ctx.strokeStyle = '#0099ff'
+    ctx.lineWidth = 3
     ctx.beginPath()
-    const start = viewport.worldToViewport(this.geometies[0].x, this.geometies[0].y)
-    ctx.moveTo(start.x, start.y)
-    for (let i = 1; i < this.geometies.length; i++) {
-      const pt = viewport.worldToViewport(this.geometies[i].x, this.geometies[i].y)
-      ctx.lineTo(pt.x, pt.y)
-    }
-    ctx.lineWidth = 4
+    ctx.moveTo(p1.x, p1.y)
+    ctx.lineTo(p2.x, p2.y)
     ctx.stroke()
-    this.geometies.forEach((pt) => {
-      const cpt = viewport.worldToViewport(pt.x, pt.y)
+    ctx.restore()
+    // 两端锚点
+    ;[p1, p2].forEach((pt) => {
       ctx.beginPath()
-      ctx.arc(cpt.x, cpt.y, 6, 0, Math.PI * 2)
+      ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'
       ctx.fill()
+      ctx.strokeStyle = '#0099ff'
+      ctx.stroke()
     })
   }
 }

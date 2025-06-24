@@ -1,108 +1,82 @@
-import { Viewport } from './Viewport.js'
-import { DataManager } from './DataManager.js'
-import { Render } from '../render/Render.js'
-import { ViewEditMode } from '../mode/ViewEditMode.js'
-import { CanvasArea } from '../ui/CanvasArea.js'
-import { LeftBar } from '../ui/LeftBar.js'
-import { EventListeners } from '../common/EventListeners.js'
-import { Constants } from '../common/Constants.js'
-import { DrawMode } from '../mode/DrawMode.js'
-import { RenderMode } from '../mode/RenderMode.js'
-
 /**
- * @class AppManager
- * @classdesc 应用生命周期协调器，负责初始化和管理各核心模块。
+ * AppManager
+ * 统一调度核心控制器，负责模式切换、事件分发、状态管理和 UI 通知。
+ * 依赖 DataManager, Viewport, Render, CommandInvoker 等。
+ *
+ * 用法：单例模式，挂载全局 window.AppManager 或通过 import 获取。
  */
-export class AppManager {
-  /**
-   * @param {HTMLElement} [container=document.body] - 应用挂载容器
-   */
-  constructor(container) {
-    this.container = container
-    /** @type {DataManager} 数据管理*/
+import { DataManager } from './DataManager.js'
+import { Viewport } from './Viewport.js'
+import { CommandInvoker } from '../commands/CommandInvoker.js'
+import { EventEmitter } from '../common/EventEmitter.js'
+
+export class AppManager extends EventEmitter {
+  constructor() {
+    super()
+    if (AppManager._instance) return AppManager._instance
     this.dataManager = new DataManager()
-    /** @type {Viewport} 唯一视图*/
     this.viewport = new Viewport()
-    /** @type {EventListeners} 事件跟踪*/
-    this.eventListeners = new EventListeners()
-
-    /** @type {CanvasArea} */
-    this.canvasArea = new CanvasArea(this.container, this.eventEmitter, this.viewport)
-
-    /** @type {Render} */
-    this.render = new Render(this.canvasArea, this.dataManager, this.viewport)
-
-    //默认是查看/编辑模式
-    this.mode = new ViewEditMode(
-      this.eventListeners,
-      this.canvasArea.getDataCanvas(),
-      this.viewport,
-      this.render,
-      this.dataManager
-    )
-
-    this.leftBar = new LeftBar({
-      onModeChange: (mode) => this.switchMode(mode)
-    })
-
-    // 仅调试用
-    window.AppManager = this
+    this.commandInvoker = new CommandInvoker(this.dataManager)
+    this.currentMode = null
+    this.modes = {} // {name: modeInstance}
+    this.uiEventListener = this._onUIEvent.bind(this)
+    AppManager._instance = this
   }
 
-  async start() {
-    await this.dataManager.loadFromIndexedDB()
-    this.mode.enter()
-    // 监听窗口resize
-    window.addEventListener('resize', () => {
-      const rect = this.container.getBoundingClientRect()
-      this.viewport.width = rect.width
-      this.viewport.height = rect.height
-      this.canvasArea.resizeCanvases(this.viewport.width, this.viewport.height)
-      this.render.renderAll()
-    })
-    // 阻止浏览器默认右键菜单的显示
-    document.addEventListener('contextmenu', function (event) {
-      event.preventDefault()
+  /**
+   * 注册所有业务模式
+   * @param {Array<BaseMode>} modeInstances
+   */
+  registerModes(modeInstances) {
+    modeInstances.forEach((mode) => {
+      this.modes[mode.name] = mode
+      mode.setContext({
+        appManager: this,
+        dataManager: this.dataManager,
+        viewport: this.viewport,
+        commandInvoker: this.commandInvoker,
+        eventBus: this // 事件流通道
+      })
     })
   }
 
-  switchMode(mode) {
-    if (mode === this.mode.name) {
-      return
-    }
-    this.mode.exit() //切换模式时需退出当前模式
-    switch (mode) {
-      case Constants.MODE_VIEW_EDIT:
-        this.mode = new ViewEditMode(
-          this.eventListeners,
-          this.canvasArea.getDataCanvas(),
-          this.viewport,
-          this.render,
-          this.dataManager
-        )
-        this.mode.enter() //进入模式
-        break
-      case Constants.MODE_DRAW:
-        this.mode = new DrawMode(
-          this.eventListeners,
-          this.canvasArea.getDataCanvas(),
-          this.viewport,
-          this.render,
-          this.dataManager
-        )
-        this.mode.enter()
-        break
-      case Constants.MODE_RENDER:
-        this.mode = new RenderMode(
-          this.eventListeners,
-          this.canvasArea.getDataCanvas(),
-          this.viewport,
-          this.render,
-          this.dataManager
-        )
-        this.mode.enter()
-        break
-      default:
-    }
+  /**
+   * 切换业务模式
+   * @param {string} modeName
+   */
+  switchMode(modeName) {
+    if (this.currentMode) this.currentMode.deactivate()
+    this.currentMode = this.modes[modeName]
+    if (this.currentMode) this.currentMode.activate()
+    this.emit('modeChange', { mode: modeName })
+  }
+
+  /**
+   * 处理 UI 层 emit 的事件（业务调度入口）
+   * @param {string} eventType
+   * @param {object} payload
+   */
+  _onUIEvent(eventType, payload) {
+    if (!this.currentMode) return
+    this.currentMode.handleUIEvent(eventType, payload)
+  }
+
+  /**
+   * UI 层注册事件回调（如 UI 层 emit('xxx', payload)）
+   * @param {HTMLElement} root
+   */
+  bindUI(root) {
+    root.addEventListener('uievent', (e) => {
+      this._onUIEvent(e.detail.type, e.detail.payload)
+    })
+  }
+
+  /**
+   * 业务变更时向 UI 层发送通知（如 elements 变更等）
+   * @param {string} eventType
+   * @param {object} payload
+   */
+  notifyUI(eventType, payload) {
+    this.emit(eventType, payload) // UI 层通过订阅监听
   }
 }

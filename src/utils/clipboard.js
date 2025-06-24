@@ -1,13 +1,24 @@
-// 剪贴板相关工具
-export async function getImageBitmapFromClipboard() {
-  const items = await navigator.clipboard.read()
-  for (let item of items) {
-    if (item.types.includes('image/png')) {
-      const blob = await item.getType('image/png')
-      const imgdata = await createImageBitmap(blob)
-      return imgdata
-    } else {
-      return undefined
+/**
+ * 从剪贴板读取图片对象
+ * @returns {Promise<HTMLImageElement|null>}
+ */
+export async function getImageFromClipboard() {
+  try {
+    const clipboardItems = await navigator.clipboard.read()
+    for (const item of clipboardItems) {
+      for (const type of item.types) {
+        if (type.startsWith('image/')) {
+          const blob = await item.getType(type)
+          const img = new Image()
+          img.src = URL.createObjectURL(blob)
+          await new Promise((res) => (img.onload = res))
+          return img
+        }
+      }
     }
+    return null
+  } catch (e) {
+    alert('无法从剪贴板读取图片:' + (e.message || e))
+    return null
   }
 }
