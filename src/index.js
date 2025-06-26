@@ -133,8 +133,6 @@ eventEmitter.on('viewportChange', () => {
     if (currentMode.constructor.name !== 'RenderMode') {
       const elements = dataManager.getAllElements()
       eventEmitter.emit('renderElements', elements, [])
-      const temporary = dataManager.temporary
-      eventEmitter.emit('renderTemporary', temporary)
     }
   } else {
     // 如果ModeManager还没初始化，使用默认渲染
@@ -164,9 +162,29 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault()
   }
   if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+    // DrawMode下，正在绘制或笔模式都不触发全局undo，交由DrawKeyboardStrategy处理
+    if (
+      modeManager &&
+      modeManager.getCurrentMode() &&
+      modeManager.getCurrentMode().constructor.name === 'DrawMode' &&
+      (modeManager.getCurrentMode().isPenMode ||
+        modeManager.getCurrentMode().strategies?.draw?.linePoints?.length > 0)
+    ) {
+      return
+    }
     commandManager.undo()
   }
   if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
+    // DrawMode下，正在绘制或笔模式都不触发全局redo，交由DrawKeyboardStrategy处理
+    if (
+      modeManager &&
+      modeManager.getCurrentMode() &&
+      modeManager.getCurrentMode().constructor.name === 'DrawMode' &&
+      (modeManager.getCurrentMode().isPenMode ||
+        modeManager.getCurrentMode().strategies?.draw?.linePoints?.length > 0)
+    ) {
+      return
+    }
     commandManager.redo()
   }
 })

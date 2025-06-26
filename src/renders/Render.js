@@ -5,11 +5,22 @@ export class Render {
     this.canvasArea = canvasArea
     this.eventEmitter = eventEmitter
     this.viewport = viewport
+    this.lastTemporaryState = null
+
     this.eventEmitter.on('renderElements', (elements, excludeIds) => {
       this.renderElements(elements, excludeIds)
     })
     this.eventEmitter.on('renderTemporary', (temporary) => {
+      this.lastTemporaryState = temporary // Store the state
       this.renderTemporary(temporary)
+    })
+    this.eventEmitter.on('renderMousePos', (mousePosInfo) => {
+      this.renderMousePos(mousePosInfo)
+    })
+    this.eventEmitter.on('viewportChange', () => {
+      if (this.lastTemporaryState) {
+        this.renderTemporary(this.lastTemporaryState)
+      }
     })
   }
 
@@ -174,11 +185,15 @@ export class Render {
     ) {
       // 彻底无内容，直接清空并返回
       this.clearTemporary()
+      // 也清空mouseCanvas
+      this.clearMouseCanvas()
+      this.lastTemporaryState = null
       return
     }
 
     const ctx = this.canvasArea.temporaryCtx
     const viewport = this.viewport
+    this.clearMouseCanvas()
 
     // 渲染DrawMode的绘制状态
     if (temporary.drawMode) {
@@ -265,61 +280,7 @@ export class Render {
         ctx.restore()
       }
 
-      // 渲染鼠标位置
-      if (temporary.mousePos) {
-        if (temporary.isPenMode) {
-          // 笔模式：显示圆形光标
-          ctx.save()
-          ctx.strokeStyle = COLOR.DRAW
-          ctx.lineWidth = 2
-          ctx.setLineDash([])
-
-          const pos = temporary.mousePos
-          ctx.beginPath()
-          ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2)
-          ctx.stroke()
-          ctx.restore()
-        } else {
-          // 鼠标模式：显示十字准星
-          const size = 20
-          const gap = 6 // 镂空的长度
-          const half = Math.floor(size / 2)
-          const halfGap = Math.floor(gap / 2)
-          const nowx = temporary.mousePos.x
-          const nowy = temporary.mousePos.y
-
-          ctx.save()
-          ctx.strokeStyle = COLOR.DRAW_CURSOR_CROSS
-          ctx.lineWidth = 2
-
-          // 垂直线（上半部分）
-          ctx.beginPath()
-          ctx.moveTo(nowx, nowy - half)
-          ctx.lineTo(nowx, nowy - halfGap)
-          ctx.stroke()
-
-          // 垂直线（下半部分）
-          ctx.beginPath()
-          ctx.moveTo(nowx, nowy + halfGap)
-          ctx.lineTo(nowx, nowy + half)
-          ctx.stroke()
-
-          // 水平线（左半部分）
-          ctx.beginPath()
-          ctx.moveTo(nowx - half, nowy)
-          ctx.lineTo(nowx - halfGap, nowy)
-          ctx.stroke()
-
-          // 水平线（右半部分）
-          ctx.beginPath()
-          ctx.moveTo(nowx + halfGap, nowy)
-          ctx.lineTo(nowx + half, nowy)
-          ctx.stroke()
-
-          ctx.restore()
-        }
-      }
-
+      // 鼠标位置渲染交由renderMousePos处理
       return // DrawMode不需要渲染其他临时内容
     }
 
@@ -459,6 +420,69 @@ export class Render {
 
       ctx.strokeRect(x, y, w, h)
       ctx.restore()
+    }
+  }
+
+  clearMouseCanvas() {
+    this.canvasArea.mouseCtx.clearRect(
+      0,
+      0,
+      this.canvasArea.mouseCanvas.width,
+      this.canvasArea.mouseCanvas.height
+    )
+  }
+
+  /**
+   * 渲染鼠标实时位置
+   * @param {Object} mousePosInfo { mousePos, isPenMode }
+   */
+  renderMousePos(mousePosInfo) {
+    this.clearMouseCanvas()
+    if (!mousePosInfo || !mousePosInfo.mousePos) return
+    const mouseCtx = this.canvasArea.mouseCtx
+    const pos = mousePosInfo.mousePos
+    if (mousePosInfo.isPenMode) {
+      // 笔模式：显示圆形光标
+      mouseCtx.save()
+      mouseCtx.strokeStyle = COLOR.DRAW
+      mouseCtx.lineWidth = 2
+      mouseCtx.setLineDash([])
+      mouseCtx.beginPath()
+      mouseCtx.arc(pos.x, pos.y, 8, 0, Math.PI * 2)
+      mouseCtx.stroke()
+      mouseCtx.restore()
+    } else {
+      // 鼠标模式：显示十字准星
+      const size = 20
+      const gap = 6 // 镂空的长度
+      const half = Math.floor(size / 2)
+      const halfGap = Math.floor(gap / 2)
+      const nowx = pos.x
+      const nowy = pos.y
+      mouseCtx.save()
+      mouseCtx.strokeStyle = COLOR.DRAW_CURSOR_CROSS
+      mouseCtx.lineWidth = 2
+      // 垂直线（上半部分）
+      mouseCtx.beginPath()
+      mouseCtx.moveTo(nowx, nowy - half)
+      mouseCtx.lineTo(nowx, nowy - halfGap)
+      mouseCtx.stroke()
+      // 垂直线（下半部分）
+      mouseCtx.beginPath()
+      mouseCtx.moveTo(nowx, nowy + halfGap)
+      mouseCtx.lineTo(nowx, nowy + half)
+      mouseCtx.stroke()
+      // 水平线（左半部分）
+      mouseCtx.beginPath()
+      mouseCtx.moveTo(nowx - half, nowy)
+      mouseCtx.lineTo(nowx - halfGap, nowy)
+      mouseCtx.stroke()
+      // 水平线（右半部分）
+      mouseCtx.beginPath()
+      mouseCtx.moveTo(nowx + halfGap, nowy)
+      mouseCtx.lineTo(nowx + half, nowy)
+      mouseCtx.stroke()
+      mouseCtx.restore()
     }
   }
 }

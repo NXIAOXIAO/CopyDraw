@@ -45,6 +45,14 @@ canvas {
   display: none;
 }
 
+#mouseCanvas {
+  z-index: 2000;
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
 /* --------------------分割线----------------------- */
 
 #topbar {

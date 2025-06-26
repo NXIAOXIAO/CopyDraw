@@ -39,12 +39,14 @@ export class MoveElementsCommand extends Command {
 
         // 直接应用结束状态
         if (element.type === 'LineElement' || element.type === 'PathElement') {
-          element.geometies = elementInfo.endState.geometies.map((p) => ({ x: p.x, y: p.y }))
-          await this.dataManager.updateElement(elementInfo.id, { geometies: element.geometies })
+          await this.dataManager.updateElement(elementInfo.id, {
+            geometies: elementInfo.endState.geometies.map((p) => ({ x: p.x, y: p.y }))
+          })
         } else if (element.type === 'ImgElement') {
-          element.x = elementInfo.endState.x
-          element.y = elementInfo.endState.y
-          await this.dataManager.updateElement(elementInfo.id, { x: element.x, y: element.y })
+          await this.dataManager.updateElement(elementInfo.id, {
+            x: elementInfo.endState.x,
+            y: elementInfo.endState.y
+          })
         }
       }
       console.log('[MoveElementsCommand] 执行移动元素', this.elements.length)
@@ -61,12 +63,14 @@ export class MoveElementsCommand extends Command {
 
         // 直接恢复到开始状态
         if (element.type === 'LineElement' || element.type === 'PathElement') {
-          element.geometies = elementInfo.startState.geometies.map((p) => ({ x: p.x, y: p.y }))
-          await this.dataManager.updateElement(elementInfo.id, { geometies: element.geometies })
+          await this.dataManager.updateElement(elementInfo.id, {
+            geometies: elementInfo.startState.geometies.map((p) => ({ x: p.x, y: p.y }))
+          })
         } else if (element.type === 'ImgElement') {
-          element.x = elementInfo.startState.x
-          element.y = elementInfo.startState.y
-          await this.dataManager.updateElement(elementInfo.id, { x: element.x, y: element.y })
+          await this.dataManager.updateElement(elementInfo.id, {
+            x: elementInfo.startState.x,
+            y: elementInfo.startState.y
+          })
         }
       }
       console.log('[MoveElementsCommand] 撤销移动元素', this.elements.length)
