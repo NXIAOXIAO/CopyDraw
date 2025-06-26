@@ -1,0 +1,199 @@
+/* :root {
+  --primary: #3b82f6;
+  --bg: #232323;
+  --border: #e5e7eb;
+} */
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
+  background: #151515;
+}
+
+#canvasContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+canvas {
+  border: none;
+  display: block;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  pointer-events: none;
+}
+
+#backgroundCanvas {
+  z-index: 1;
+}
+#dataCanvas {
+  z-index: 2;
+  pointer-events: auto;
+}
+#temporaryCanvas {
+  z-index: 3;
+}
+#selectCanvas {
+  z-index: 999;
+  display: none;
+}
+
+#mouseCanvas {
+  z-index: 2000;
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+/* --------------------分割线----------------------- */
+
+#topbar {
+  z-index: 4;
+  position: fixed;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transform: translateX(calc(50vw - 50%));
+  opacity: 1;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#topbar.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#topbar.fade-in {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 渲染策略下拉菜单样式 */
+#render-strategy-select {
+  display: none; /* 默认隐藏 */
+  height: 37px; /* 与按钮等高 */
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #222;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+#render-strategy-select:hover {
+  border-color: #f78d23;
+}
+
+#render-strategy-select:focus {
+  border-color: #e28b34;
+}
+
+/* Render模式下的TopBar样式 */
+#topbar.render-mode {
+  right: 4px;
+  left: auto;
+  transform: none;
+  flex-direction: row-reverse; /* 反转布局，让下拉菜单在左边 */
+}
+
+#topbar.render-mode #btn-undo,
+#topbar.render-mode #btn-redo,
+#topbar.render-mode #btn-save {
+  display: none;
+}
+
+#topbar.render-mode #btn-export {
+  display: block;
+}
+
+#topbar.render-mode #render-strategy-select {
+  display: block;
+  margin-left: 0; /* 移除左边距 */
+  margin-right: 0px;
+}
+
+/* 非Render模式下隐藏导出按钮和下拉菜单 */
+#topbar:not(.render-mode) #btn-export,
+#topbar:not(.render-mode) #render-strategy-select {
+  display: none;
+}
+
+#leftbar {
+  z-index: 4;
+  position: fixed;
+  width: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 4px;
+  background: #ffffff;
+  padding: 0px 2px;
+  transform: translateY(calc(45vh - 50%));
+}
+
+/* 通用按钮样式 */
+button {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  color: #222;
+  font-size: 16px;
+  padding: 8px 8px;
+  outline: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background: #f78d23;
+}
+
+button.active,
+button:active {
+  background: #e28b34;
+}
+
+button.disabled {
+  background: #d7d7d7;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button > img {
+  display: block; /* 避免 inline 元素的额外空间 */
+  width: 24px;
+  height: 24px;
+}
+
+button.radius {
+  border-radius: 4px;
+}
+
+button.visiable {
+  display: none;
+}
+
+/* --------------------分割线----------------------- */
+#info {
+  position: fixed;
+  z-index: 4;
+  left: 16px;
+  bottom: 8px;
+  color: white;
+  font-size: 1rem;
+}

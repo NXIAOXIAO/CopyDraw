@@ -1,43 +1,69 @@
-// LeftBar 侧边栏组件，用于多模式切换
-const drawIcon = './public/icon/line_icon.ico'
-const renderIcon = './public/icon/render-icon.png'
-const arrowIcon = './public/icon/arrow.png'
+// LeftBar：左侧工具栏
+// 用途：负责左侧工具栏UI及事件绑定，支持模式切换
+// 参数：app(AppController)
+// 方法：init()
+// 异常：接口内部有try-catch
 
 export class LeftBar {
-  constructor({ onModeChange }) {
-    this.onModeChange = onModeChange
-    this.modes = [
-      { name: '默认', icon: arrowIcon, mode: 'view-edit' },
-      { name: '绘制', icon: drawIcon, mode: 'draw' },
-      { name: '渲染', icon: renderIcon, mode: 'render' }
-    ]
-    this.activeMode = 'view-edit'
-    this.el = this._createBar()
-    document.body.appendChild(this.el) //直接挂载在body上
+  /**
+   * @param {Object} options
+   * @param {AppController} options.app
+   */
+  constructor(eventEmitter) {
+    this.eventEmitter = eventEmitter
+    this.el = document.getElementById('leftbar')
+    this.btnViewEdit = document.getElementById('edit-view')
+    this.btnDraw = document.getElementById('draw')
+    this.btnRender = document.getElementById('render')
+    this.currentMode = null
+    this.addEvent()
+    this.btnViewEdit.click()
+    console.log('[LeftBar] 左侧工具栏初始化完成', this.currentMode)
   }
-  _createBar() {
-    const bar = document.createElement('div')
-    bar.className = 'leftbar'
-    this.modes.forEach((m) => {
-      const btn = document.createElement('div')
-      btn.className = 'leftbar-item' + (m.mode === this.activeMode ? ' active' : '')
-      btn.title = m.name
-      const img = document.createElement('img')
-      img.src = m.icon
-      img.alt = m.name
-      btn.appendChild(img)
-      btn.onclick = () => {
-        this.setActive(m.mode)
-        if (this.onModeChange) this.onModeChange(m.mode)
+
+  //添加按钮点击事件
+  addEvent() {
+    this.btnViewEdit.addEventListener('click', () => {
+      this.updateButtonState('view-edit')
+    })
+    this.btnDraw.addEventListener('click', () => {
+      this.updateButtonState('draw')
+    })
+    this.btnRender.addEventListener('click', () => {
+      this.updateButtonState('render')
+    })
+  }
+
+  /**
+   * 更新按钮状态
+   * @param {string} mode
+   */
+  updateButtonState(mode) {
+    try {
+      if (this.currentMode === mode) {
+        return
       }
-      bar.appendChild(btn)
-    })
-    return bar
-  }
-  setActive(mode) {
-    this.activeMode = mode
-    Array.from(this.el.children).forEach((btn, i) => {
-      btn.classList.toggle('active', this.modes[i].mode === mode)
-    })
+
+      //移除所有按钮的active类
+      ;[this.btnViewEdit, this.btnDraw, this.btnRender].forEach((btn) => {
+        if (btn) btn.classList.remove('active')
+      })
+      //添加当前模式的active类
+      switch (mode) {
+        case 'view-edit':
+          this.btnViewEdit.classList.add('active')
+          break
+        case 'draw':
+          this.btnDraw.classList.add('active')
+          break
+        case 'render':
+          this.btnRender.classList.add('active')
+          break
+      }
+      this.currentMode = mode
+      this.eventEmitter.emit('modeChange', mode)
+    } catch (e) {
+      console.error('[LeftBar] 更新按钮状态失败:', e)
+    }
   }
 }

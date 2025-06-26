@@ -1,15 +1,48 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
+<html lang="zh">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CopyDraw</title>
     <link rel="shortcut icon" href="./public/icon/render-icon.png" type="image/x-icon" />
     <link rel="stylesheet" href="./public/basic.css" />
+    <link rel="stylesheet" href="./public/ui.css" />
   </head>
-
   <body>
-    <div id="app"></div>
+    <!-- Top bar -->
+    <div id="topbar">
+      <button id="btn-undo" class="radius" title="撤销">👈</button>
+      <button id="btn-redo" class="radius" title="重做">👉</button>
+      <button id="btn-save" class="radius" title="保存">📦</button>
+      <button id="btn-export" class="radius" title="导出">🎁</button>
+      <select id="render-strategy-select">
+        <option value="default">默认渲染</option>
+      </select>
+    </div>
+
+    <!-- Left bar -->
+    <div id="leftbar">
+      <button id="edit-view" title="编辑/浏览模式">
+        <img src=".\public\icon\arrow.png" alt="edit-view-icon" />
+      </button>
+      <button id="draw" title="绘制模式">
+        <img src=".\public\icon\line_icon.ico" alt="draw-icon" />
+      </button>
+      <button id="render" title="渲染模式">
+        <img src=".\public\icon\render-icon.png" alt="render-icon" />
+      </button>
+    </div>
+
+    <!-- Canvas area -->
+    <div id="canvasContainer">
+      <canvas id="backgroundCanvas"></canvas>
+      <canvas id="dataCanvas"></canvas>
+      <canvas id="temporaryCanvas"></canvas>
+      <canvas id="selectCanvas"></canvas>
+      <canvas id="mouseCanvas"></canvas>
+    </div>
+
+    <div id="info">xxxx</div>
     <script type="module" src="./src/index.js"></script>
   </body>
 </html>

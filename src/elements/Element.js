@@ -1,25 +1,13 @@
-import { Viewport } from '../core/Viewport.js'
-import { generateId } from '../utils/id.js'
 /**
- * 元素基类，所有绘制元素应继承此类
+ * Element 基类
+ * 所有元素通用属性和方法，提供 selectorRender（被选中时渲染），默认渲染交给 Render
  */
-export class Element {
-  /**
-   * @param {string} type - 元素类型
-   */
-  constructor(type) {
-    /** @type {string} */
-    this.id = generateId(type) // 统一生成id
-    /** @type {string} */
-    this.type = type
-  }
 
-  /**
-   * 选择器渲染（供 Selector 使用）
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {Viewport} viewport
-   */
-  selectorRender(ctx, viewport) {
-    // 子类实现具体渲染逻辑
+import { generateId } from '../utils/id.js'
+export class Element {
+  constructor(type) {
+    this.id = generateId(type) // 统一生成id
+    this.type = type
+    this.selected = false
   }
 }
