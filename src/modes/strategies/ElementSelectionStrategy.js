@@ -50,13 +50,6 @@ export class ElementSelectionStrategy {
         }
         selection.selectedPointIdx = -1
         selection.selectedElement = null // 多选时不设置单个选中元素
-      } else if (e.ctrlKey) {
-        // 按住 Ctrl：将元素添加到选中集
-        if (!selection.selectedElements.find((el) => el.id === hitElement.id)) {
-          selection.selectedElements.push(hitElement)
-        }
-        selection.selectedPointIdx = -1
-        selection.selectedElement = null // 多选时不设置单个选中元素
       } else {
         // 无修饰键：
         if (hitElement.type === 'LineElement' && hitPointIdx !== -1) {

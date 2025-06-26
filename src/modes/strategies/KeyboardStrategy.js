@@ -90,6 +90,13 @@ export class KeyboardStrategy {
           this.mode.eventEmitter.emit('updateViewport', offset)
         }
         break
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        if (e.shiftKey) {
+          e.preventDefault()
+          this.strategies.view?.handleRotation(e.key)
+        }
+        break
       default:
         break
     }

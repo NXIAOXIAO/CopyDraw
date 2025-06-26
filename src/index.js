@@ -1,11 +1,11 @@
 // 主入口文件：负责初始化所有 canvas、数据、模式、UI 绑定与全局事件
 import { EventEmitter } from './common/EventEmitter.js'
+import { CommandManager } from './common/CommandManager.js'
 import { Info } from './ui/Info.js'
 import { LeftBar } from './ui/LeftBar.js'
 import { CanvasArea } from './ui/CanvasArea.js'
 import { Viewport } from './core/Viewport.js'
 import { DataManager } from './core/DataManager.js'
-import { CommandManager } from './core/CommandManager.js'
 import { ModeManager } from './core/ModeManager.js'
 import { Render } from './renders/Render.js'
 import { TopBar } from './ui/TopBar.js'
@@ -118,6 +118,8 @@ eventEmitter.on('elementsChanged', async (data) => {
     // 如果ModeManager还没初始化，使用默认渲染
     eventEmitter.emit('renderElements', data.elements, [])
   }
+  // 主层刷新后再刷新临时层
+  eventEmitter.emit('refreshTemporaryLayer')
 })
 
 eventEmitter.on('viewportChange', () => {
@@ -145,6 +147,20 @@ eventEmitter.on('viewportChange', () => {
 
 eventEmitter.on('temporaryChange', (temporary) => {
   eventEmitter.emit('renderTemporary', temporary)
+})
+
+// 刷新临时层（undo/redo等场景）
+eventEmitter.on('refreshTemporaryLayer', () => {
+  if (modeManager && modeManager.getCurrentMode) {
+    const mode = modeManager.getCurrentMode()
+    if (
+      mode &&
+      mode.constructor.name === 'ViewEditMode' &&
+      typeof mode.updateTemporary === 'function'
+    ) {
+      mode.updateTemporary()
+    }
+  }
 })
 
 // 8. 监听窗口大小变化

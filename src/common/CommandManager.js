@@ -52,6 +52,7 @@ export class CommandManager {
       this.redoStack.push(command)
       this.notifyUI()
       console.log('[CommandManager] 撤销命令', command.constructor.name)
+      // 此处不再直接emit refreshTemporaryLayer，由elementsChanged事件回调统一触发
     } catch (e) {
       console.error('[CommandManager] 撤销异常', e)
     }
@@ -68,6 +69,7 @@ export class CommandManager {
       this.undoStack.push(command)
       this.notifyUI()
       console.log('[CommandManager] 重做命令', command.constructor.name)
+      // 此处不再直接emit refreshTemporaryLayer，由elementsChanged事件回调统一触发
     } catch (e) {
       console.error('[CommandManager] 重做异常', e)
     }

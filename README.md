@@ -13,82 +13,129 @@ func 分支，基于函数式编程，进行重构，todo
 
 ---
 
-# CopyDraw 重构版
+# CopyDraw 重构
 
-一个基于 Canvas 的绘图应用，支持多种绘图模式和渲染效果。
+一个基于 Canvas 的绘图应用，采用“模式-策略-命令-数据-渲染”解耦架构，支持多种绘图模式和渲染效果。
+
+## 架构概览
+
+- **模式（Mode）**：如 ViewEditMode、DrawMode、RenderMode，负责主交互流程和状态切换。
+- **策略（Strategy）**：每种模式下细分交互策略（如拖动、点操作、框选、导入导出、键盘等），单一职责，易于扩展。
+- **命令（Command）**：所有数据变更均通过命令对象（如 AddElementCommand、MoveElementCommand、AddPointCommand 等）实现，支持撤销/重做。
+- **数据（DataManager + IndexedDB）**：所有元素集中管理，持久化到 IndexedDB，支持批量导入导出。
+- **渲染（Render + 多策略）**：主渲染器+多种渲染策略，支持不同风格和性能优化。
+- **事件驱动（EventEmitter）**：全局事件解耦，模式、策略、UI、渲染等均通过事件通信。
+- **辅助工具**：如 viewHelpers、viewEditHelpers 等，提供坐标、几何、批量操作等通用能力。
+
+### Mermaid 架构图
+
+```mermaid
+flowchart TD
+  subgraph UI/Canvas
+    CanvasArea
+  end
+  subgraph 模式
+    ViewEditMode
+    DrawMode
+    RenderMode
+  end
+  subgraph 策略
+    DragElementStrategy
+    PointOperationStrategy
+    BoxSelectStrategy
+    ViewOperationStrategy
+    CopyPasteStrategy
+    ImportExportStrategy
+    KeyboardStrategy
+  end
+  subgraph 命令
+    AddElementCommand
+    MoveElementCommand
+    AddPointCommand
+    DeleteElementCommand
+    // ...
+  end
+  subgraph 数据
+    DataManager
+    IndexedDB
+  end
+  subgraph 渲染
+    Render
+    IRenderStrategy
+    DefaultRenderStrategy
+    CartoonRenderStrategy
+    // ...
+  end
+  subgraph 工具
+    viewHelpers
+    viewEditHelpers
+  end
+
+  CanvasArea <--> ViewEditMode
+  CanvasArea <--> DrawMode
+  CanvasArea <--> RenderMode
+  ViewEditMode <--> DragElementStrategy
+  ViewEditMode <--> PointOperationStrategy
+  ViewEditMode <--> BoxSelectStrategy
+  ViewEditMode <--> ViewOperationStrategy
+  ViewEditMode <--> CopyPasteStrategy
+  ViewEditMode <--> ImportExportStrategy
+  ViewEditMode <--> KeyboardStrategy
+  DrawMode <--> DrawStrategy
+  DrawMode <--> ViewOperationStrategy
+  DrawMode <--> CopyPasteStrategy
+  DrawMode <--> KeyboardStrategy
+  RenderMode <--> ViewOperationStrategy
+  RenderMode <--> KeyboardStrategy
+  策略 -->|命令| AddElementCommand
+  策略 -->|命令| MoveElementCommand
+  策略 -->|命令| AddPointCommand
+  策略 -->|命令| DeleteElementCommand
+  命令 --> DataManager
+  DataManager <--> IndexedDB
+  DataManager <--> Render
+  Render <--> IRenderStrategy
+  IRenderStrategy <--> DefaultRenderStrategy
+  IRenderStrategy <--> CartoonRenderStrategy
+  // ...
+  ViewEditMode <--> viewHelpers
+  ViewEditMode <--> viewEditHelpers
+```
 
 ## 功能特性
 
 ### 核心功能
 
-- **多模式支持**：查看编辑模式、绘制模式、渲染模式
-- **元素管理**：支持线条元素和图片元素
-- **数据持久化**：使用 IndexedDB 存储数据
-- **命令模式**：支持撤销/重做操作
-- **事件驱动**：基于 EventEmitter 的解耦架构
+- **多模式解耦**：支持查看编辑、绘制、渲染等多种模式，模式切换流畅，互不干扰。
+- **策略扩展**：每种模式下细分 Drag/Point/BoxSelect/View/CopyPaste/ImportExport/Keyboard 等策略，单一职责，易于扩展和维护。
+- **命令模式**：所有数据变更均通过命令对象（如 AddElementCommand、MoveElementCommand、AddPointCommand 等）实现，支持撤销/重做。
+- **数据持久化**：所有元素集中管理，持久化到 IndexedDB，支持批量导入导出（Ctrl+I/Ctrl+O）。
+- **事件驱动**：基于 EventEmitter 的全局事件解耦，模式、策略、UI、渲染等均通过事件通信。
+- **辅助工具**：如 viewHelpers、viewEditHelpers，提供坐标、几何、批量操作等通用能力。
+- **高性能渲染**：主渲染器+多种渲染策略，支持不同风格和性能优化。
 
-### ViewEditMode（查看编辑模式）
+### 主要交互与快捷键
 
-- **鼠标左键点选**：选择单个元素
-- **右键框选**：框选多个元素
-- **Shift+点击**：减少选择
-- **Ctrl+点击**：增加选择
-- **M 键移动**：选中元素后按 M 键可整体移动
-- **Delete 键删除**：删除选中的元素或点
+- **鼠标左键点选/右键框选/Shift+点击**：灵活选择和多选元素（Shift+点击支持加/减选，Ctrl+点击已移除）
+- **M 键移动**：选中元素后按 M 键可整体进入移动模式
+- **Delete 键删除**：
+  - 选中线元素上的点时，Delete 删除该点（仅剩2点时删除整条线）
+  - 选中元素时，Delete 删除元素
 - **双击添加点**：在 LineElement 上双击可添加新点
-- **空格键平移**：按下空格键鼠标变为手掌，可拖动画布
-- **滚轮缩放**：鼠标滚轮进行视图缩放
-- **Shift+箭头旋转**：键盘 Shift+左右箭头进行视图旋转
+- **滚轮缩放**：鼠标滚轮进行视图缩放，最大支持30倍
+- **Ctrl+I/Ctrl+O**：批量导入/导出元素（JSON），支持文件选择和下载
+- **P 键**：将距离当前屏幕中心最近的元素自动居中到屏幕中心，支持任意缩放/旋转状态
 
 ### 元素类型
 
-- **LineElement**：线条元素，支持多点绘制
-- **ImgElement**：图片元素，支持位置和角度调整
-
-## 项目结构
-
-```
-src/
-├── commands/          # 命令模式实现
-├── common/            # 通用工具类
-├── core/              # 核心模块
-├── elements/          # 元素定义
-├── modes/             # 模式实现
-├── renders/           # 渲染器
-├── ui/                # UI组件
-└── utils/             # 工具函数
-```
-
-### 核心模块说明
-
-- **EventEmitter**：事件发布/订阅机制
-- **Viewport**：视图变换器，负责坐标转换
-- **DataManager**：数据管理器，负责元素的增删改查
-- **CommandManager**：命令管理器，实现撤销/重做
-- **ModeManager**：模式管理器，管理不同操作模式
-- **Render**：渲染器，负责元素的可视化
-
-### 元素系统
-
-- **Element**：基类，提供通用属性和方法
 - **LineElement**：线条元素，支持多点绘制和编辑
+- **PathElement**：路径元素，支持笔模式连续绘制
 - **ImgElement**：图片元素，支持位置和角度调整
 
-### 渲染系统
+### 扩展性
 
-- **Render**：主渲染器
-- **Selector**：选择器，用于元素选择
-- **多种渲染策略**：支持不同的渲染效果
-
-## 技术栈
-
-- **原生 JavaScript**：ES6+语法
-- **Canvas API**：绘图和交互
-- **IndexedDB**：数据存储
-
-## 扩展方向
-
-- **新增元素类型**：继承 Element，完善 Render/selectorRender
-- **新增渲染效果**：实现 IRenderStrategy 接口
-- **新增操作模式**：继承 BaseMode，实现 activate/deactivate
-- **新增命令**：继承 Command，实现 execute/undo
+- 新增元素类型：继承 Element，完善 Render/selectorRender
+- 新增渲染效果：实现 IRenderStrategy 接口
+- 新增操作模式：继承 BaseMode，实现 activate/deactivate
+- 新增命令：继承 Command，实现 execute/undo
+- 新增策略：扩展各 Mode 下的策略类，实现 handleEvent
