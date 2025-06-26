@@ -1,25 +1,42 @@
+// DeleteElementCommand：删除元素命令
+// 用途：从DataManager删除元素，支持撤销/重做
+// 参数：dataManager, element, index
+// 方法：execute/undo
+// 返回值：无
+// 异常：接口内部有try-catch
+
 import { Command } from './Command.js'
 
-/**
- * DeleteElementCommand
- * 删除元素命令
- */
 export class DeleteElementCommand extends Command {
-  constructor(dataManager, elementId) {
+  /**
+   * @param {DataManager} dataManager
+   * @param {Object|Object[]} elementOrElements
+   */
+  constructor(dataManager, elementOrElements) {
     super()
     this.dataManager = dataManager
-    this.elementId = elementId
-    this._backup = null
+    this.elements = Array.isArray(elementOrElements) ? elementOrElements : [elementOrElements]
   }
 
   async execute() {
-    this._backup = this.dataManager.getElement(this.elementId)
-    await this.dataManager.deleteElement(this.elementId)
+    try {
+      for (const element of this.elements) {
+        await this.dataManager.deleteElement(element.id)
+        console.log('[DeleteElementCommand] 执行删除', element)
+      }
+    } catch (e) {
+      console.error('[DeleteElementCommand] 执行异常', e)
+    }
   }
 
   async undo() {
-    if (this._backup) {
-      await this.dataManager.addElement(this._backup)
+    try {
+      for (const element of this.elements) {
+        await this.dataManager.addElement(element)
+        console.log('[DeleteElementCommand] 撤销删除', element)
+      }
+    } catch (e) {
+      console.error('[DeleteElementCommand] 撤销异常', e)
     }
   }
 }

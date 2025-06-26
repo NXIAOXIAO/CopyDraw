@@ -1,147 +1,175 @@
-/**
- * CopyDraw 入口文件
- * 负责初始化各层，挂载 UI 组件、AppManager，注册模式，建立事件流。
- * 加入详细的 console.log，便于排查初始化、事件流和模式切换问题。
- */
-
-import { AppManager } from './core/AppManager.js'
-import { DrawMode } from './mode/DrawMode.js'
-import { ViewEditMode } from './mode/ViewEditMode.js'
-import { RenderMode as RenderModeClass } from './mode/RenderMode.js'
-import { TopBar } from './ui/TopBar.js'
+// 主入口文件：负责初始化所有 canvas、数据、模式、UI 绑定与全局事件
+import { EventEmitter } from './common/EventEmitter.js'
+import { Info } from './ui/Info.js'
 import { LeftBar } from './ui/LeftBar.js'
 import { CanvasArea } from './ui/CanvasArea.js'
-import { Render } from './render/Render.js'
+import { Viewport } from './core/Viewport.js'
+import { DataManager } from './core/DataManager.js'
+import { CommandManager } from './core/CommandManager.js'
+import { ModeManager } from './core/ModeManager.js'
+import { Render } from './renders/Render.js'
+import { TopBar } from './ui/TopBar.js'
 
-console.log('[CopyDraw] index.js loaded')
+// 0. 全局事件派发器
+const eventEmitter = new EventEmitter()
 
-// ===== 初始化核心层 =====
-const appManager = new AppManager({ debug: true })
-window.AppManager = appManager
-console.log('[CopyDraw] AppManager created:', appManager)
+// 1. 准备好core模块
+const viewport = new Viewport(eventEmitter)
 
-// ====== 初始化模式层 ======
-const modes = [new DrawMode(), new ViewEditMode(), new RenderModeClass()]
-appManager.registerModes(modes)
-console.log(
-  '[CopyDraw] Modes registered:',
-  modes.map((m) => m.name)
-)
+// 2. 准备好ui对象
+const info = new Info(eventEmitter)
+const topBar = new TopBar(eventEmitter)
+const leftBar = new LeftBar(eventEmitter)
 
-// ====== 初始化 UI 层 ======
-const root = document.body
-console.log('[CopyDraw] TopBar init...')
-const topBar = new TopBar(document.getElementById('topbar'))
-console.log('[CopyDraw] LeftBar init...')
-const leftBar = new LeftBar(document.getElementById('leftbar'))
-console.log('[CopyDraw] CanvasArea init...')
-const canvasArea = new CanvasArea(document.getElementById('main'))
+const canvasContainer = document.getElementById('canvasContainer')
+const canvasArea = new CanvasArea(canvasContainer, eventEmitter)
 
-// 监听 window resize，动态调整 viewport 和 canvas 尺寸
-function updateViewportAndCanvas() {
-  // 以 #main 区域为基准
-  const main = document.getElementById('main')
-  const rect = main.getBoundingClientRect()
-  const width = rect.width
-  const height = rect.height
-  // 更新 viewport 参数（如有 setSize 方法可用，否则直接赋值）
-  if (appManager.viewport) {
-    appManager.viewport.width = width
-    appManager.viewport.height = height
-    // 如有 setSize 方法可用可调用
-    if (typeof appManager.viewport.setSize === 'function') {
-      appManager.viewport.setSize(width, height)
+const commandManager = new CommandManager(eventEmitter)
+// 3. 准备好Render
+const render = new Render(canvasArea, eventEmitter, viewport)
+
+const dataManager = new DataManager(eventEmitter)
+window.dataManager = dataManager
+
+// 5. 等待DataManager初始化完成后初始化模式管理器
+let modeManager = null
+
+eventEmitter.on('elementsLoaded', async (data) => {
+  console.log('[index.js] DataManager初始化完成，开始创建ModeManager')
+
+  // 创建模式管理器
+  modeManager = new ModeManager(eventEmitter, viewport, dataManager, canvasArea, commandManager)
+
+  // 重新绘制元素
+  eventEmitter.emit('renderElements', data.elements, [])
+
+  // ModeManager初始化完成后，注册渲染策略相关的事件监听器
+  eventEmitter.on('modeChange', (modeName) => {
+    if (modeName === 'render' && modeManager) {
+      const renderMode = modeManager.getCurrentMode()
+      if (renderMode && typeof renderMode.getAvailableStrategies === 'function') {
+        const strategies = renderMode.getAvailableStrategies()
+        topBar.updateRenderStrategies(strategies)
+        topBar.setCurrentRenderStrategy(renderMode.getCurrentStrategy())
+      } else {
+        console.warn('[index.js] RenderMode未正确初始化或缺少getAvailableStrategies方法')
+      }
     }
-  }
-  canvasArea.resizeCanvases(width, height)
-}
-window.addEventListener('resize', updateViewportAndCanvas)
-// 首次初始化时也调用一次
-updateViewportAndCanvas()
-
-// AppManager 绑定 UI 层事件流入口（监听 document，确保冒泡事件能收到）
-appManager.bindUI(document)
-console.log('[CopyDraw] AppManager bindUI(document) done.')
-
-// ====== 渲染器绑定 ======
-// 注意：Render 需要在 CanvasArea 初始化后再创建，且只传入 canvasArea
-const render = new Render(canvasArea)
-console.log('[CopyDraw] Render instance created:', render)
-
-// 元素变更时渲染
-appManager.dataManager.on('elementsChanged', () => {
-  if (canvasArea && appManager.dataManager && appManager.viewport && render) {
-    console.log('[CopyDraw] elementsChanged: 调用 canvasArea.render', {
-      elements: appManager.dataManager.getAllElements(),
-      viewport: appManager.viewport,
-      render
-    })
-  }
-  canvasArea.render(appManager.dataManager, appManager.viewport, render)
+  })
 })
 
-// 模式切换时调整渲染表现
-appManager.on('modeChange', ({ mode }) => {
-  console.log('[CopyDraw] modeChange:', mode)
-  if (render) console.log('[CopyDraw] 调用 render.setMode:', mode)
-  render.setMode(mode)
-  if (canvasArea && appManager.dataManager && appManager.viewport && render) {
-    console.log('[CopyDraw] 调用 canvasArea.render', {
-      elements: appManager.dataManager.getAllElements(),
-      viewport: appManager.viewport,
-      render
-    })
-  }
-  canvasArea.render(appManager.dataManager, appManager.viewport, render)
-  // 激活左侧按钮样式
-  leftBar.setActive(mode)
+// 6. 注册事件处理器
+eventEmitter.on('executeCommand', (command) => {
+  commandManager.execute(command)
 })
 
-// 临时绘制
-appManager.on('tempDraw', (drawState) => {
-  console.log('[CopyDraw] tempDraw:', drawState)
-  canvasArea.renderTemp(drawState)
-})
-appManager.on('tempDrawEnd', () => {
-  console.log('[CopyDraw] tempDrawEnd')
-  canvasArea.renderTemp(null)
+eventEmitter.on('updateViewport', (newData) => {
+  viewport.update(newData)
 })
 
-// 选中变化时刷新
-appManager.on('selectionChanged', ({ id }) => {
-  appManager.dataManager.getAllElements().forEach((ele) => (ele.selected = ele.id === id))
-  canvasArea.render(appManager.dataManager, appManager.viewport, render)
+eventEmitter.on('setTemporary', (temporary) => {
+  dataManager.setTemporary(temporary)
 })
 
-// 撤销、重做、模式切换
-document.addEventListener('uievent', async (e) => {
-  const { type } = e.detail
-  console.log('[CopyDraw] uievent:', type, e.detail)
-  if (type === 'undo') await appManager.commandInvoker.undo()
-  if (type === 'redo') await appManager.commandInvoker.redo()
-  if (type === 'switchMode') {
-    const { mode } = e.detail.payload
-    appManager.switchMode(mode)
-  }
-  // 可扩展保存、导出等
+eventEmitter.on('getAllElements', (callback) => {
+  callback(dataManager.getAllElements())
 })
 
-// ===== 初始化默认模式 =====
-// 用 hasInit 标记只执行一次初始化渲染，避免多次重复渲染
-let hasInit = false
-appManager.dataManager.on('elementsLoaded', () => {
-  if (!hasInit) {
-    hasInit = true
-    appManager.switchMode('edit-view')
-    canvasArea.render(appManager.dataManager, appManager.viewport, render)
+eventEmitter.on('saveAll', () => {
+  // 保存操作由DataManager处理
+  console.log('[index.js] 触发保存操作')
+})
+
+eventEmitter.on('saveCompleted', () => {
+  // 保存成功后重置命令栈
+  commandManager.clear()
+  console.log('[index.js] 保存成功，命令栈已重置')
+})
+
+eventEmitter.on('saveFailed', (error) => {
+  console.error('[index.js] 保存失败:', error)
+})
+
+eventEmitter.on('deleteElement', (elementId) => {
+  dataManager.deleteElement(elementId)
+})
+
+// 渲染策略相关事件
+eventEmitter.on('renderStrategyChange', (strategyName) => {
+  console.log('[index.js] 渲染策略切换:', strategyName)
+  // 事件会由RenderMode处理
+})
+
+// 7. 事件监听
+eventEmitter.on('elementsChanged', async (data) => {
+  // 只有在非Render模式下才使用Render.js渲染
+  if (modeManager && modeManager.getCurrentMode()) {
+    const currentMode = modeManager.getCurrentMode()
+    // 新增：如果是ViewEditMode且正在移动元素，禁止主层重绘
+    if (currentMode.constructor.name === 'ViewEditMode' && currentMode.isMovingElement) {
+      // 只更新临时层
+      eventEmitter.emit('renderTemporary', dataManager.temporary)
+      return
+    }
+    if (currentMode.constructor.name !== 'RenderMode') {
+      eventEmitter.emit('renderElements', data.elements, [])
+    }
+  } else {
+    // 如果ModeManager还没初始化，使用默认渲染
+    eventEmitter.emit('renderElements', data.elements, [])
   }
 })
 
-// 元素变更时渲染（排除初始化阶段）
-appManager.dataManager.on('elementsChanged', () => {
-  if (!hasInit) return // 初始化阶段不渲染
-  canvasArea.render(appManager.dataManager, appManager.viewport, render)
+eventEmitter.on('viewportChange', () => {
+  // 只有在非Render模式下才使用Render.js重新渲染
+  if (modeManager && modeManager.getCurrentMode()) {
+    const currentMode = modeManager.getCurrentMode()
+    // 新增：如果是ViewEditMode且正在移动元素，禁止主层重绘
+    if (currentMode.constructor.name === 'ViewEditMode' && currentMode.isMovingElement) {
+      // 只更新临时层
+      eventEmitter.emit('renderTemporary', dataManager.temporary)
+      return
+    }
+    if (currentMode.constructor.name !== 'RenderMode') {
+      const elements = dataManager.getAllElements()
+      eventEmitter.emit('renderElements', elements, [])
+      const temporary = dataManager.temporary
+      eventEmitter.emit('renderTemporary', temporary)
+    }
+  } else {
+    // 如果ModeManager还没初始化，使用默认渲染
+    const elements = dataManager.getAllElements()
+    eventEmitter.emit('renderElements', elements, [])
+    const temporary = dataManager.temporary
+    eventEmitter.emit('renderTemporary', temporary)
+  }
 })
 
-// 额外调试输出
-console.log('[CopyDraw] index.js bootstrap complete')
+eventEmitter.on('temporaryChange', (temporary) => {
+  eventEmitter.emit('renderTemporary', temporary)
+})
+
+// 8. 监听窗口大小变化
+window.addEventListener('resize', () => {
+  canvasArea.resizeCanvases(canvasContainer.clientWidth, canvasContainer.clientHeight)
+})
+
+// 9. 快捷键支持模式切换（数字键1/2/3）
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1') leftBar.btnViewEdit.click()
+  if (e.key === '2') leftBar.btnDraw.click()
+  if (e.key === '3') leftBar.btnRender.click()
+  if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+    eventEmitter.emit('saveAll')
+    e.preventDefault()
+  }
+  if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+    commandManager.undo()
+  }
+  if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
+    commandManager.redo()
+  }
+})
+
+// 10. 阻止默认右键菜单
+document.addEventListener('contextmenu', (e) => e.preventDefault())

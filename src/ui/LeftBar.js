@@ -1,47 +1,69 @@
-/**
- * LeftBar
- * 左侧工具栏，切换模式（编辑、绘制、渲染），emit uievent 事件
- */
+// LeftBar：左侧工具栏
+// 用途：负责左侧工具栏UI及事件绑定，支持模式切换
+// 参数：app(AppController)
+// 方法：init()
+// 异常：接口内部有try-catch
+
 export class LeftBar {
-  constructor(root) {
-    this.root = root
-    this.btnMap = {
-      'edit-view': this.root.querySelector('#edit-view'),
-      draw: this.root.querySelector('#draw'),
-      render: this.root.querySelector('#render')
-    }
-    this._bind()
+  /**
+   * @param {Object} options
+   * @param {AppController} options.app
+   */
+  constructor(eventEmitter) {
+    this.eventEmitter = eventEmitter
+    this.el = document.getElementById('leftbar')
+    this.btnViewEdit = document.getElementById('edit-view')
+    this.btnDraw = document.getElementById('draw')
+    this.btnRender = document.getElementById('render')
+    this.currentMode = null
+    this.addEvent()
+    this.btnViewEdit.click()
+    console.log('[LeftBar] 左侧工具栏初始化完成', this.currentMode)
   }
 
-  _bind() {
-    this.btnMap['edit-view'].addEventListener('click', () => {
-      this.emitEvent('switchMode', { mode: 'edit-view' })
+  //添加按钮点击事件
+  addEvent() {
+    this.btnViewEdit.addEventListener('click', () => {
+      this.updateButtonState('view-edit')
     })
-    this.btnMap['draw'].addEventListener('click', () => {
-      this.emitEvent('switchMode', { mode: 'draw' })
+    this.btnDraw.addEventListener('click', () => {
+      this.updateButtonState('draw')
     })
-    this.btnMap['render'].addEventListener('click', () => {
-      this.emitEvent('switchMode', { mode: 'render' })
+    this.btnRender.addEventListener('click', () => {
+      this.updateButtonState('render')
     })
-  }
-
-  emitEvent(type, payload = {}) {
-    // 必须 bubbles:true，否则冒泡不到 body
-    const evt = new CustomEvent('uievent', { detail: { type, payload }, bubbles: true })
-    this.root.dispatchEvent(evt)
   }
 
   /**
-   * 设置当前激活按钮的样式
-   * @param {'edit-view'|'draw'|'render'} mode
+   * 更新按钮状态
+   * @param {string} mode
    */
-  setActive(mode) {
-    Object.entries(this.btnMap).forEach(([key, btn]) => {
-      if (key === mode) {
-        btn.classList.add('active')
-      } else {
-        btn.classList.remove('active')
+  updateButtonState(mode) {
+    try {
+      if (this.currentMode === mode) {
+        return
       }
-    })
+
+      //移除所有按钮的active类
+      ;[this.btnViewEdit, this.btnDraw, this.btnRender].forEach((btn) => {
+        if (btn) btn.classList.remove('active')
+      })
+      //添加当前模式的active类
+      switch (mode) {
+        case 'view-edit':
+          this.btnViewEdit.classList.add('active')
+          break
+        case 'draw':
+          this.btnDraw.classList.add('active')
+          break
+        case 'render':
+          this.btnRender.classList.add('active')
+          break
+      }
+      this.currentMode = mode
+      this.eventEmitter.emit('modeChange', mode)
+    } catch (e) {
+      console.error('[LeftBar] 更新按钮状态失败:', e)
+    }
   }
 }

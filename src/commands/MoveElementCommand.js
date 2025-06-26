@@ -1,23 +1,46 @@
-import { Command } from './Command.js'
+// MoveElementCommand：移动元素命令
+// 用途：移动元素，支持撤销/重做
+// 参数：dataManager, element, oldPos, newPos
+// 方法：execute/undo
+// 返回值：无
+// 异常：接口内部有try-catch
 
-/**
- * MoveElementCommand
- * 移动物体命令
- */
+import { Command } from './Command.js';
+
 export class MoveElementCommand extends Command {
-  constructor(dataManager, elementId, newProps, oldProps) {
-    super()
-    this.dataManager = dataManager
-    this.elementId = elementId
-    this.newProps = newProps
-    this.oldProps = oldProps
+  /**
+   * @param {DataManager} dataManager
+   * @param {Object} element
+   * @param {Object} oldPos
+   * @param {Object} newPos
+   */
+  constructor(dataManager, element, oldPos, newPos) {
+    super();
+    this.dataManager = dataManager;
+    this.element = element;
+    this.oldPos = oldPos;
+    this.newPos = newPos;
   }
 
-  async execute() {
-    await this.dataManager.updateElement(this.elementId, this.newProps)
+  execute() {
+    try {
+      Object.assign(this.element, this.newPos);
+      this.dataManager.setData(this.dataManager.getData());
+      this.dataManager.save();
+      console.log('[MoveElementCommand] 执行移动', this.element);
+    } catch (e) {
+      console.error('[MoveElementCommand] 执行异常', e);
+    }
   }
 
-  async undo() {
-    await this.dataManager.updateElement(this.elementId, this.oldProps)
+  undo() {
+    try {
+      Object.assign(this.element, this.oldPos);
+      this.dataManager.setData(this.dataManager.getData());
+      this.dataManager.save();
+      console.log('[MoveElementCommand] 撤销移动', this.element);
+    } catch (e) {
+      console.error('[MoveElementCommand] 撤销异常', e);
+    }
   }
 }

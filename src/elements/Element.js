@@ -10,14 +10,4 @@ export class Element {
     this.type = type
     this.selected = false
   }
-
-  /**
-   * 选择器渲染（被选中时的高亮/辅助锚点等）
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {Viewport} viewport
-   * @abstract
-   */
-  selectorRender(ctx, viewport) {
-    // 具体元素子类实现
-  }
 }

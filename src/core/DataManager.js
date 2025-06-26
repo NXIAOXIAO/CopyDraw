@@ -1,106 +1,182 @@
-/**
- * DataManager
- * 元素数据管理层，内部用 Map 存储所有元素，提供增删查改，所有操作通过 Command 进行，外部仅通过接口操作。
- *
- * 提供事件通知，变更时 emit('elementsChanged', {elements})
- * IndexedDB 作为持久化存储
- */
-import { openIDB, saveElement, deleteElement, loadAllElements } from '../utils/indexedDB.js'
+import { openDB, saveElement, deleteElement, loadAllElements } from '../utils/indexedDB.js'
 import { EventEmitter } from '../common/EventEmitter.js'
+import { LineElement } from '../elements/LineElement.js'
+import { ImgElement } from '../elements/ImgElement.js'
+import { PathElement } from '../elements/PathElement.js'
 
-export class DataManager extends EventEmitter {
-  constructor() {
-    super()
-    this.elements = new Map() // key: element.id, value: element
+function restoreElement(obj) {
+  if (!obj || !obj.type) return obj
+  if (obj.type === 'LineElement' || obj.type === 'line') {
+    const inst = Object.assign(new LineElement(), obj)
+    inst.type = 'LineElement' // 强制修正type
+    return inst
+  }
+  if (obj.type === 'PathElement') {
+    return Object.assign(new PathElement(), obj)
+  }
+  if (obj.type === 'ImgElement') return Object.assign(new ImgElement(), obj)
+  return obj
+}
+
+// 新增：ImageBitmap <-> Blob 转换工具
+async function imageBitmapToBlob(imageBitmap) {
+  const canvas = document.createElement('canvas')
+  canvas.width = imageBitmap.width
+  canvas.height = imageBitmap.height
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(imageBitmap, 0, 0)
+  return new Promise((resolve) => canvas.toBlob(resolve))
+}
+
+async function restoreImgElementImgdata(element) {
+  if (element.type === 'ImgElement' && element.imgdata instanceof Blob) {
+    element.imgdata = await createImageBitmap(element.imgdata)
+  }
+}
+
+/**
+ * 数据管理器
+ * 负责元素的增删改查，以及数据库的读写
+ */
+export class DataManager {
+  constructor(eventEmitter) {
+    this.elements = new Map()
+    this.temporary = {}
     this.db = null
-    this._initDB()
+    this.eventEmitter = eventEmitter
+    this.eventEmitter.on('saveAll', async () => {
+      try {
+        await this.saveAll()
+        this.eventEmitter.emit('saveCompleted')
+      } catch (e) {
+        console.error('[DataManager] 保存失败:', e)
+        this.eventEmitter.emit('saveFailed', e)
+      }
+    })
+    this.init()
   }
 
-  async _initDB() {
+  setTemporary(temporary) {
+    this.temporary = temporary
+    this.eventEmitter.emit('temporaryChange', temporary)
+  }
+
+  /**
+   * 初始化数据管理器
+   * @returns {Promise<void>}
+   */
+  async init() {
     try {
-      this.db = await openIDB()
+      console.log('[DataManager] 开始初始化数据库...')
+
+      // 打开数据库（如果不存在会自动创建）
+      this.db = await openDB('CopyDrawDB')
+      console.log('[DataManager] 数据库打开成功，开始加载元素...')
+
       const loaded = await loadAllElements(this.db)
-      loaded.forEach((ele) => this.elements.set(ele.id, ele))
-      this.emit('elementsLoaded', { elements: this.getAllElements() })
+      console.log('[DataManager] 元素加载成功，数量:', loaded.length)
+
+      // 新增：还原图片元素的imgdata为ImageBitmap
+      for (const ele of loaded) {
+        await restoreImgElementImgdata(ele)
+        this.elements.set(ele.id, restoreElement(ele))
+      }
+
+      console.log('[DataManager] 初始化完成')
+      this.eventEmitter.emit('elementsLoaded', { elements: this.getAllElements() })
     } catch (e) {
-      alert('数据加载失败: ' + (e.message || e))
+      console.error('[DataManager] 数据初始化失败:', e)
+      console.error('[DataManager] 错误详情:', {
+        message: e.message,
+        name: e.name,
+        stack: e.stack
+      })
+      throw new Error('数据初始化失败: ' + (e.message || e))
     }
   }
 
   /**
-   * 新增元素
-   * @param {Element} element
+   * 新增元素，element 必须有 type 字段
    */
   async addElement(element) {
-    this.elements.set(element.id, element)
-    try {
-      await saveElement(this.db, element)
-    } catch (e) {
-      alert('元素保存失败:' + (e.message || e))
+    // 保证存的是实例
+    const ele = restoreElement(element)
+    // 如果 imgdata 是 Blob，先还原为 ImageBitmap
+    if (ele.type === 'ImgElement' && ele.imgdata instanceof Blob) {
+      ele.imgdata = await createImageBitmap(ele.imgdata)
     }
-    this.emit('elementsChanged', { elements: this.getAllElements() })
+    this.elements.set(ele.id, ele)
+    // 存库时用副本，imgdata为Blob
+    let dbEle = ele
+    if (ele.type === 'ImgElement' && ele.imgdata instanceof ImageBitmap) {
+      dbEle = { ...ele, imgdata: await imageBitmapToBlob(ele.imgdata) }
+    }
+    try {
+      await saveElement(this.db, dbEle)
+    } catch (e) {
+      console.error('[DataManager] 元素保存失败:', e)
+      throw new Error('元素保存失败: ' + (e.message || e))
+    }
+    this.eventEmitter.emit('elementsChanged', { elements: this.getAllElements() })
   }
 
   /**
    * 删除元素
-   * @param {string} id
    */
   async deleteElement(id) {
     this.elements.delete(id)
     try {
       await deleteElement(this.db, id)
     } catch (e) {
-      alert('元素删除失败:' + (e.message || e))
+      console.error('[DataManager] 元素删除失败:', e)
+      throw new Error('元素删除失败: ' + (e.message || e))
     }
-    this.emit('elementsChanged', { elements: this.getAllElements() })
+    this.eventEmitter.emit('elementsChanged', { elements: this.getAllElements() })
   }
 
   /**
-   * 修改元素（如移动/变形）
-   * @param {string} id
-   * @param {object} props
+   * 修改元素（如移动/变形等）
    */
   async updateElement(id, props) {
-    const ele = this.elements.get(id)
+    let ele = this.elements.get(id)
     if (!ele) return
     Object.assign(ele, props)
-    try {
-      await saveElement(this.db, ele)
-    } catch (e) {
-      alert('元素保存失败:' + (e.message || e))
+    // 如果 imgdata 是 Blob，先还原为 ImageBitmap
+    if (ele.type === 'ImgElement' && ele.imgdata instanceof Blob) {
+      ele.imgdata = await createImageBitmap(ele.imgdata)
     }
-    this.emit('elementsChanged', { elements: this.getAllElements() })
+    // 存库时用副本，imgdata为Blob
+    let dbEle = ele
+    if (ele.type === 'ImgElement' && ele.imgdata instanceof ImageBitmap) {
+      dbEle = { ...ele, imgdata: await imageBitmapToBlob(ele.imgdata) }
+    }
+    try {
+      await saveElement(this.db, dbEle)
+    } catch (e) {
+      console.error('[DataManager] 元素保存失败:', e)
+      throw new Error('元素保存失败: ' + (e.message || e))
+    }
+    this.eventEmitter.emit('elementsChanged', { elements: this.getAllElements() })
   }
 
-  /**
-   * 获取单个元素
-   * @param {string} id
-   * @returns {Element|null}
-   */
   getElement(id) {
     return this.elements.get(id) || null
   }
 
-  /**
-   * 获取所有元素（数组形式）
-   * @returns {Array<Element>}
-   */
   getAllElements() {
     return Array.from(this.elements.values())
   }
 
-  /**
-   * 清空所有元素
-   */
-  async clearAll() {
-    this.elements.clear()
+  async saveAll() {
+    if (!this.db) return
     try {
-      const tx = this.db.transaction('elements', 'readwrite')
-      await tx.objectStore('elements').clear()
-      await tx.done
+      for (const ele of this.elements.values()) {
+        await saveElement(this.db, ele)
+      }
+      console.log('[DataManager] 保存成功')
     } catch (e) {
-      alert('清空失败:' + (e.message || e))
+      console.error('[DataManager] 保存失败:', e)
+      throw new Error('保存失败: ' + (e.message || e))
     }
-    this.emit('elementsChanged', { elements: [] })
   }
 }
